@@ -8,6 +8,7 @@ This file contains data structure that represents an IDX file.
 #include "../core/error.h"
 #include "../core/filesystem.h"
 #include "../core/string.h"
+#include "error.h"
 #include "types.h"
 
 /**\namespace hana::idx */
@@ -157,7 +158,7 @@ struct IdxFile {
 bool verify_idx_file(const IdxFile& idx_file);
 
 /** Read an IDX (text) file into memory. */
-core::Error read_idx_file(core::StringRef file_path, OUT IdxFile* idx_file);
+idx::Error read_idx_file(core::StringRef file_path, OUT IdxFile* idx_file);
 
 
 }}

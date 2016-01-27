@@ -81,7 +81,6 @@ core::Vector3i get_inter_block_strides(core::StringRef bit_string, int hz_level,
 /** Return the intra-block strides in x, y, and z for samples in a given hz level. */
 core::Vector3i get_intra_block_strides(core::StringRef bit_string, int hz_level)
 {
-    HANA_ASSERT(bit_string.size >= hz_level);
     // count the number of x, y, z in the least significant (z_level + 1) bits
     // in the bit_string
     int z_level = static_cast<int>(bit_string.size) - hz_level;
@@ -285,7 +284,7 @@ void parse_file_name_template(const core::Path& path, FileNameTemplate* ftmp)
     }
 }
 
-core::Error read_idx_file(std::istream& input, IdxFile* idx_file)
+idx::Error read_idx_file(std::istream& input, IdxFile* idx_file)
 {
     using namespace hana::core;
 
@@ -616,7 +615,7 @@ int IdxFile::get_field_index(const char* name) const
 {
     core::StringRef name_ref(name);
     for (int i = 0; i < num_fields; ++i) {
-        if (fields[i].name == name) {
+        if (core::StringRef(fields[i].name) == name_ref) {
             return i;
         }
     }
@@ -690,7 +689,7 @@ bool verify_idx_file(const IdxFile& idx_file)
     return true;
 }
 
-core::Error read_idx_file(core::StringRef file_path, OUT IdxFile* idx_file)
+idx::Error read_idx_file(core::StringRef file_path, OUT IdxFile* idx_file)
 {
     HANA_ASSERT(file_path);
     HANA_ASSERT(idx_file);
@@ -709,6 +708,9 @@ core::Error read_idx_file(core::StringRef file_path, OUT IdxFile* idx_file)
     }
     idx_file->absolute_path.remove_last(); // remove the file name
     std::ifstream input(file_path.ptr);
+    if (!input) {
+        return core::Error::FileNotFound;
+    }
     return read_idx_file(input, idx_file);
 }
 
