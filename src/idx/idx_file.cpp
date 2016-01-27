@@ -397,14 +397,14 @@ core::Error read_idx_file(std::istream& input, IdxFile* idx_file)
                     // TODO
                 }
                 else {
-                    //set_error_msg(fields_); // TODO: re-enable this
+                    set_error_msg(fields_);
                     return Error::ParsingError;
                 }
                 token = tokenizer.next();
             }
         }
         else if (line[0] != '\0') {
-            //set_error_msg(line); // TODO: reenable this
+            set_error_msg(line);
             return Error::ParsingError;
         }
     }
@@ -643,7 +643,7 @@ bool verify_idx_file(const IdxFile& idx_file)
     using namespace hana::core;
 
     if (idx_file.version <= 0) {
-        //set_error_msg(version_); // TODO: re-enable this
+        set_error_msg(version_);
         return false;
     }
 
@@ -660,30 +660,30 @@ bool verify_idx_file(const IdxFile& idx_file)
     }
     for (int i = 0; i < idx_file.num_fields; ++i) {
         if (!verify_idx_field(idx_file.fields[i])) {
-            //set_error_msg(fields_); // TODO: reenable this
+            set_error_msg(fields_);
             return false;
         }
     }
 
     if (idx_file.bits[0] != 'V') {
-        //set_error_msg(bits_); // TODO: re-enable this
+        set_error_msg(bits_);
         return false;
     }
 
     if (idx_file.bits_per_block <= 0) {
-        //set_error_msg(bitsperblock_); // TODO: re-enable this
+        set_error_msg(bitsperblock_);
         return false;
     }
 
     if (idx_file.blocks_per_file <= 0) {
-        //set_error_msg(blocksperfile_); // TODO: re-enable this
+        set_error_msg(blocksperfile_);
         return false;
     }
 
     if (idx_file.filename_template.head.num_components() == 0 ||
         idx_file.filename_template.num_hex_bits[0] == 0 ||
         !idx_file.filename_template.ext) {
-        //set_error_msg(filename_template_); // TODO: re-enable this
+        set_error_msg(filename_template_);
         return false;
     }
 

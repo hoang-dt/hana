@@ -17,9 +17,9 @@ struct Error {
     bool operator==(int c) const { return code == c; }
     int code;
 
-    //virtual const char* get_error_msg() const; // TODO: disabled for not compiling on linux
+    const char* get_error_msg() const;
 };
 
-// void set_error_msg(const char* msg); // TODO: disabled for not compiling on linux
+ void set_error_msg(const char* msg);
 
 }}

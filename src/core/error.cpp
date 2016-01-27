@@ -5,7 +5,6 @@
 
 namespace hana { namespace core {
 
-/*
 const char* Error::get_error_msg() const
 {
     switch (code) {
@@ -14,11 +13,11 @@ const char* Error::get_error_msg() const
         case ParsingError: return "Parsing error";
         default: return nullptr;
     };
-}*/
+}
 
 thread_local char error_msg[1024];
 
-//void set_error_msg(const char* msg) { copy(STR_REF(error_msg), StringRef(msg)); }
+void set_error_msg(const char* msg) { copy(STR_REF(error_msg), StringRef(msg)); }
 
 }}
 

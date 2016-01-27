@@ -20,11 +20,9 @@ struct Error : public core::Error {
         NumErrors
     };
 
-    // TODO: add a function to return strings from error codes
-
     Error() = default;
     Error(int c) : core::Error(c) {}
-    //const char* get_error_msg() const override;
+    const char* get_error_msg() const;
 };
 
 }}

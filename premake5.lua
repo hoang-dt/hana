@@ -38,6 +38,7 @@ project "idx"
     language "C++"
     location "build/idx"
     targetdir "bin/%{cfg.buildcfg}"
+    links { "core" }
     files { "src/idx/**.h", "src/idx/**.cpp" }
     
  project "test"
@@ -46,5 +47,5 @@ project "idx"
     language "C++"
     location "build/test"
     targetdir "bin/%{cfg.buildcfg}"    
-    links { "core", "idx" }
+    links { "idx" }
     files { "src/test/**.h", "src/test/**.cpp" }
