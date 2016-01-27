@@ -10,7 +10,7 @@ This code is modified from http://cnicholson.net/2009/02/stupid-c-tricks-adventu
 
 #pragma once
 
-#include <debugbreak/debugbreak.h>
+#include "debugbreak.h"
 #include <cstdio>
 
 /** \namespace hana::core */
