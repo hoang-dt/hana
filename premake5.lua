@@ -47,5 +47,5 @@ project "idx"
     language "C++"
     location "build/test"
     targetdir "bin/%{cfg.buildcfg}"    
-    links { "idx" }
+    links { "idx", "core" }
     files { "src/test/**.h", "src/test/**.cpp" }

@@ -20,6 +20,6 @@ struct Error {
     const char* get_error_msg() const;
 };
 
- void set_error_msg(const char* msg);
+void set_error_msg(const char* msg);
 
 }}

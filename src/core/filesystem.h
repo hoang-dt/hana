@@ -5,13 +5,14 @@
 #include <iosfwd>
 
 #ifdef _WIN32
-//#define WIN32_LEAN_AND_MEAN
-//#include <Windows.h>
-#define PATH_MAX 260 // a hack to avoid having to #include <Windows.h>
+    //#define WIN32_LEAN_AND_MEAN
+    //#include <Windows.h>
+    #define PATH_MAX 260 // a hack to avoid having to #include <Windows.h>
 #elif defined __linux__
-#include <linux/limits.h>
-#include <unistd.h>
-// TODO: how aabout mac?
+    #include <linux/limits.h>
+    #include <unistd.h>
+#elif defined __APPLE__
+    #include <sys/syslimits.h>
 #endif
 
 namespace hana { namespace core {
