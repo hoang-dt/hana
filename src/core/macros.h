@@ -27,6 +27,7 @@ This file defines useful macros.
     #define ftell _ftelli64
 #elif defined __linux__ || defined __APPLE__
     #define _FILE_OFFSET_BITS 64
+    #include <cstdio>
     #define fseek fseeko
     #define ftell ftello
 #endif

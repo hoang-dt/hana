@@ -17,6 +17,7 @@ void hana::core::get_current_time(hana::core::Time& time)
     time.milliseconds = t.wMilliseconds;
 }
 #elif defined __linux__ || defined __APPLE__
+#include <time.h>
 #include <sys/time.h>
 void hana::core::get_current_time(hana::core::Time& time)
 {

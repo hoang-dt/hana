@@ -24,7 +24,7 @@ struct Error : public core::Error {
 
     Error() = default;
     Error(int c) : core::Error(c) {}
-    const char* get_error_msg() const override;
+    //const char* get_error_msg() const override;
 };
 
 }}

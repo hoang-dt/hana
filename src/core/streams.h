@@ -22,7 +22,7 @@ public:
         mem_block_ = alloc_->allocate(sizeof(CharType) * length);
         memset(mem_block_.ptr, 0, mem_block_.bytes);
         CharType* buf = static_cast<CharType*>(mem_block_.ptr);
-        setp(buf, buf + length);
+        std::streambuf::setp(buf, buf + length);
     }
 
     const char* buffer() const

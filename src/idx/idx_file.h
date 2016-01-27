@@ -64,7 +64,7 @@ struct IdxFile {
     IdxField fields[512] = {};
     int num_fields = 0;
     /** Bit string (e.g. V012012012) */
-    char bits[64] = "";
+    char bits[64];
     /** Refers to the "bits" buffer above, but without the V and only until the NULL character. */
     core::StringRef bit_string;
     /** 2^bits_per_block = number of samples per IDX block */
@@ -76,7 +76,7 @@ struct IdxFile {
     FileNameTemplate filename_template;
 
     IdxFile() = default;
-    IdxFile(const core::Path& pth) : absolute_path(pth) {}
+    IdxFile(const core::Path& pth) : absolute_path(pth) { bits[0] = '\0'; }
 
     /** Get the maximum HZ level (the same as the length of the bit string).
     NOTE: the maximum HZ level does not represent the whole data set (only half

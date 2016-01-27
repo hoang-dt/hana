@@ -15,11 +15,13 @@ namespace hana { namespace core {
 
 Path::Path()
 {
+    buffer_[0] = '\0';
     components_[0] = StringRef(buffer_, 1);
 }
 
 Path::Path(StringRef path_str)
 {
+    buffer_[0] = '\0';
     construct_from(path_str);
 }
 

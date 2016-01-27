@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdint>
+#include <utility>
 
 namespace hana { namespace core { namespace logger {
 

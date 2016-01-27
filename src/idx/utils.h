@@ -12,7 +12,7 @@ and over, we use this foward_func function to dispatch the function that we want
 base on the size of the type.
 NOTE: Since the function that is dispatched is often a template function, it has
 to be encapsulated in a template class (i.e. a functor) instead. */
-template <template <typename> typename C, typename T, typename ... A>
+template <template <typename> class C, typename T, typename ... A>
 auto forward_functor(int bytes, A&& ... args)
     -> decltype(C<T>()(std::forward<A>(args) ...))
 {

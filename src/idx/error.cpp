@@ -2,6 +2,7 @@
 
 namespace hana { namespace idx {
 
+/*
 const char* Error::get_error_msg() const
 {
     const char* msg = core::Error::get_error_msg();
@@ -22,6 +23,6 @@ const char* Error::get_error_msg() const
         }
     }
     return msg;
-}
+}*/
 
 }}

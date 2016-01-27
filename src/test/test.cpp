@@ -199,7 +199,7 @@ void test_interleave_bits()
 }
 
 void test_num_trailing_zeros()
-{
+{/* disabled for not compiling on linux
     using namespace hana::core;
     uint64_t v =
         0b1000000000000000'0000000000000000'0000000000000000'0000000000000000;
@@ -222,6 +222,7 @@ void test_num_trailing_zeros()
     v =
         0b1000000010000000'0000000000000000'0000000000000001'0000001000000011;
     std::cout << num_trailing_zeros(v) << std::endl;
+*/
 }
 
 void test_z_to_hz_address()
@@ -309,7 +310,7 @@ struct Tem {
     }
 };
 
-template <template <typename> typename C, typename S, typename ... A>
+template <template <typename> class C, typename S, typename ... A>
 auto forward_func(int bytes, A&& ... args)
 -> decltype(C<S>()(std::forward<A>(args) ...))
 {
@@ -407,28 +408,7 @@ int main()
     //test_z_to_hz_address();
     //std::cout << MAX_PATH << std::endl;
     test_read_idx_grid();
-    //test_intersect_grid();
-    uint32_t i = 0b11001011;
-    std::cout << std::bitset<32>(i) << std::endl;
-    i >>= 1;
-    i |= 1 << 7;
-    std::cout << std::bitset<32>(i) << std::endl;
-    uint32_t j = -(int(i));
-    std::cout << std::bitset<32>(j) << std::endl;
-    auto k = i & j;
-    std::cout << std::bitset<32>(k) << std::endl;
-    i /= k;
-    i >>= 1;
-    std::cout << std::bitset<32>(i) << std::endl;
-    std::cout << sizeof(std::array<int,5>) << std::endl;
-    core::StringRef bit_string = STR_REF("0012012012012012");
-    uint64_t val = 0b0000000000000000'0000000000000000'0000000000000000'1001010000111001;
-    auto coord = deinterleave_bits2(bit_string, val);
-    std::cout << std::bitset<64>(val) <<  std::endl;
-    std::cout << std::bitset<64>(coord.x) <<  std::endl;
-    std::cout << std::bitset<64>(coord.y) <<  std::endl;
-    std::cout << std::bitset<64>(coord.z) <<  std::endl;
-    //VariadicTest<>(print, 1)();
+    //test_intersect_grid();    
     forward_func<Tem, int>(2, 1);
 
     return 0;

@@ -11,7 +11,7 @@ namespace hana { namespace core {
 /** Only works for POD types. For other types, use std::vector. */
 template <typename T>
 class Array {
-    static_assert(std::is_trivially_copyable<T>::value, "Non-pod type argument");
+    //static_assert(std::is_trivially_copyable<T>::value, "Non-pod type argument");
 
   public:
     typedef T* iterator;

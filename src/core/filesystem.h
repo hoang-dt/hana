@@ -8,8 +8,10 @@
 //#define WIN32_LEAN_AND_MEAN
 //#include <Windows.h>
 #define PATH_MAX 260 // a hack to avoid having to #include <Windows.h>
-#else
+#elif defined __linux__
+#include <linux/limits.h>
 #include <unistd.h>
+// TODO: how aabout mac?
 #endif
 
 namespace hana { namespace core {
@@ -18,7 +20,7 @@ namespace hana { namespace core {
 class Path {
   private:
     /** For example, /home/dir/file.txt */
-    char buffer_[PATH_MAX] = "";
+    char buffer_[PATH_MAX];
     /** e.g. home, dir, file.txt */
     StringRef components_[PATH_MAX / 2 + 1] = {};
     size_t num_components_ = 0;

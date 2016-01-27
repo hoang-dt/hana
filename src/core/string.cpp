@@ -2,6 +2,7 @@
 #include "string.h"
 #include "types.h"
 #include "utils.h"
+#include <cstddef>
 #include <cstring>
 #include <ostream>
 

@@ -37,10 +37,10 @@ Format IdxBlockHeader::format() const
 
 void IdxBlockHeader::swap_bytes()
 {
-    buf[2] = _byteswap_ulong(buf[2]);
-    buf[3] = _byteswap_ulong(buf[3]);
-    buf[4] = _byteswap_ulong(buf[4]);
-    buf[5] = _byteswap_ulong(buf[5]);
+    buf[2] = HANA_BYTE_SWAP_4(buf[2]);
+    buf[3] = HANA_BYTE_SWAP_4(buf[3]);
+    buf[4] = HANA_BYTE_SWAP_4(buf[4]);
+    buf[5] = HANA_BYTE_SWAP_4(buf[5]);
 }
 
 uint64_t IdxBlock::num_samples() const

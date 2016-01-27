@@ -10,7 +10,6 @@
 #include "error.h"
 #include <algorithm>
 #include <array>
-#include <vector>
 
 namespace hana { namespace idx {
 
