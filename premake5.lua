@@ -7,7 +7,9 @@ workspace "Hana"
     defines { "_CRT_SECURE_NO_WARNINGS" }
     flags { "MultiProcessorCompile" }
     warnings "Extra"
-    buildoptions "-std=c++11"
+
+    filter "system:Linux"
+        buildoptions "-std=c++11"
     
     filter "configurations:Debug"
         defines { "DEBUG", "HANA_ASSERT_ON" }
