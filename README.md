@@ -6,7 +6,7 @@ Just include the `idx_file.h` and `idx.h` headers and you are good to go. Hana i
 
 Examples on how to use the API can be found in the `test` directory. To run the test program, you need to compile it (see the paragraph below). You will also want to download the test data from [here](https://www.dropbox.com/sh/8a9whtrbv7rj856/AAC2aSLKdC0V_nG3ieN6eobea?dl=0).
 
-Alternatively you can compile the library as a statically linked library. On Windows, type `premake5 vs2015`, on Linux type `./premake5 gmake`. The resulting Visual Studio solution file or GCC Makefile will be generated in the "build" directory.
+Alternatively you can compile the library as a statically linked library. On Windows, type `premake5_win vs2015`, on Linux type `./premake5_linux gmake`, on Mac type `./premake5_mac xcode` (I'm not sure about the Mac one). The resulting Visual Studio solution file/GCC Makefile/XCode solution file will be generated in the `build` directory.
 
 You can run doxygen in the main directory to generate documentation in the `doc` directory.
 
