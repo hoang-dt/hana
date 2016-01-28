@@ -239,9 +239,9 @@ void get_block_addresses(const IdxFile& idx_file, const Volume& vol, int hz_leve
                 block.hz_address = hz;
                 block.from = core::Vector3i(x, y, z);
                 if (first_block) { // for the first block, we combine all the
-                    // hz levels in the block (from 0 to min hz level), and the
-                    // resulting grid has the same strides as those of the next
-                    // hz level.
+                    // hz levels in the block (from 0 to min hz level - 1), and
+                    // the resulting grid has the same strides as those of the
+                    // next hz level.
                     block.stride = get_intra_block_strides(bit_string, hz_level + 1);
                 }
                 else {
@@ -413,6 +413,7 @@ void operator()(const core::StringRef bit_string, int bits_per_block,
         }
 
         // push back the two halves to the top of the stack
+        // TODO: maybe we can eliminate one test
         if (grid->extends.from <= second.to && second.from <= grid->extends.to) {
             stack[++top] = second;
         }

@@ -474,7 +474,7 @@ bool IdxFile::get_grid(int hz_level, OUT core::Vector3i& from,
     return get_grid(box, hz_level, from, to, stride);
 }
 
-/** Intersect a grid (given by from, stride) with a volume. Return only the
+/** Intersect a grid (given by from, to, stride) with a volume. Return only the
 part of the grid that are within the volume. Return true if there is at least
 one sample of the grid falls inside the volume. */
 bool intersect_grid(const Volume& vol, const core::Vector3i& from,

@@ -1,6 +1,7 @@
 #include "../idx/idx.h"
 #include "../idx/idx_file.h"
 #include <cstdlib>
+#include <ctime>
 #include <fstream>
 #include <iostream>
 
@@ -34,7 +35,7 @@ void test_read_idx_grid_1()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid(grid.extends, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extends, hz_level, from, to, stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -76,7 +77,7 @@ void test_read_idx_grid_2()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid(grid.extends, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extends, hz_level, from, to, stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -223,6 +224,51 @@ void test_read_idx_grid_5()
 
     free(grid.data.ptr);
 }
+
+void performance_test()
+{
+    auto begin = clock();
+
+    cout << "Performance test" << endl;
+
+    IdxFile idx_file;
+
+    // NOTE: this dataset is not included in the data directory
+    idx::Error error = read_idx_file(STR_REF("d:/Datasets/flame_heat_200_row_major/flame_heat_row_major.idx"), &idx_file);
+    if (error.code != core::Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    int hz_level = idx_file.get_max_hz_level();
+    int field = idx_file.get_field_index("data");
+    int time = 0;
+
+    Grid grid;
+    grid.extends = idx_file.get_logical_extends();
+    grid.data.bytes = idx_file.get_size_inclusive(grid.extends, field, hz_level);
+    grid.data.ptr = (char*)malloc(grid.data.bytes);
+
+    Vector3i from, to, stride;
+    idx_file.get_grid_inclusive(grid.extends, hz_level, from, to, stride);
+    Vector3i dim = (to - from) / stride + 1;
+    cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
+
+    error = read_idx_grid_inclusive(idx_file, field, time, hz_level, &grid);
+    idx::deallocate_memory();
+
+    if (error.code != core::Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    free(grid.data.ptr);
+
+    auto end = clock();
+    auto elapsed = (end - begin) / (float)CLOCKS_PER_SEC;
+    cout << "Elapsed time = " << elapsed << "s\n";
+}
+
 int main()
 {
     test_read_idx_grid_1();
@@ -230,5 +276,6 @@ int main()
     test_read_idx_grid_3();
     test_read_idx_grid_4();
     test_read_idx_grid_5();
+    performance_test();
     return 0;
 }
