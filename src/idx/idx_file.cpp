@@ -689,25 +689,26 @@ bool verify_idx_file(const IdxFile& idx_file)
     return true;
 }
 
-idx::Error read_idx_file(core::StringRef file_path, OUT IdxFile* idx_file)
+idx::Error read_idx_file(const char* file_path, OUT IdxFile* idx_file)
 {
     HANA_ASSERT(file_path);
     HANA_ASSERT(idx_file);
     // if the given file name is relative, we get the current directory and add
     // it to the beginning of the given file name
     char buffer[512];
-    if (is_relative_path(file_path)) {
+    core::StringRef file_path_ref(file_path);
+    if (is_relative_path(file_path_ref)) {
         core::get_current_dir(STR_REF(buffer));
         core::StringRef current_path(buffer);
         core::replace(current_path, '\\', '/');
         idx_file->absolute_path.construct_from(current_path);
-        idx_file->absolute_path.append(core::Path(file_path));
+        idx_file->absolute_path.append(core::Path(file_path_ref));
     }
     else {
-        idx_file->absolute_path.construct_from(file_path);
+        idx_file->absolute_path.construct_from(file_path_ref);
     }
     idx_file->absolute_path.remove_last(); // remove the file name
-    std::ifstream input(file_path.ptr);
+    std::ifstream input(file_path_ref.ptr);
     if (!input) {
         return core::Error::FileNotFound;
     }

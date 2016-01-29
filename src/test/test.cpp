@@ -19,7 +19,7 @@ void test_read_idx_grid_1()
 
     IdxFile idx_file;
 
-    idx::Error error = read_idx_file(STR_REF("../../data/flame_small_heat.idx"), &idx_file);
+    idx::Error error = read_idx_file("../../data/flame_small_heat.idx", &idx_file);
     if (error.code != core::Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -61,7 +61,7 @@ void test_read_idx_grid_2()
 
     IdxFile idx_file;
 
-    idx::Error error = read_idx_file(STR_REF("../../data/flame_small_heat.idx"), &idx_file);
+    idx::Error error = read_idx_file("../../data/flame_small_heat.idx", &idx_file);
     if (error.code != core::Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -105,7 +105,7 @@ void test_read_idx_grid_3()
 
     IdxFile idx_file;
 
-    idx::Error error = read_idx_file(STR_REF("../../data/flame_small_heat.idx"), &idx_file);
+    idx::Error error = read_idx_file("../../data/flame_small_heat.idx", &idx_file);
     if (error.code != core::Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -148,7 +148,7 @@ void test_read_idx_grid_4()
 
     IdxFile idx_file;
 
-    idx::Error error = read_idx_file(STR_REF("../../data/flame_small_o2.idx"), &idx_file);
+    idx::Error error = read_idx_file("../../data/flame_small_o2.idx", &idx_file);
     if (error.code != core::Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -190,7 +190,7 @@ void test_read_idx_grid_5()
 
     IdxFile idx_file;
 
-    idx::Error error = read_idx_file(STR_REF("../../data/flame_small_o2.idx"), &idx_file);
+    idx::Error error = read_idx_file("../../data/flame_small_o2.idx", &idx_file);
     if (error.code != core::Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -234,7 +234,7 @@ void performance_test()
     IdxFile idx_file;
 
     // NOTE: this dataset is not included in the data directory
-    idx::Error error = read_idx_file(STR_REF("d:/Datasets/flame_heat_200_row_major/flame_heat_row_major.idx"), &idx_file);
+    idx::Error error = read_idx_file("d:/Datasets/flame_heat_200_row_major/flame_heat_row_major.idx", &idx_file);
     if (error.code != core::Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -276,6 +276,6 @@ int main()
     test_read_idx_grid_3();
     test_read_idx_grid_4();
     test_read_idx_grid_5();
-    performance_test();
+    //performance_test();
     return 0;
 }

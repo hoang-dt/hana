@@ -158,7 +158,7 @@ struct IdxFile {
 bool verify_idx_file(const IdxFile& idx_file);
 
 /** Read an IDX (text) file into memory. */
-idx::Error read_idx_file(core::StringRef file_path, OUT IdxFile* idx_file);
+idx::Error read_idx_file(const char* file_path, OUT IdxFile* idx_file);
 
 
 }}

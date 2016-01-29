@@ -482,6 +482,8 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
     if (hz_level < idx_file.get_min_hz_level()) {
         return Error::InvalidHzLevel;
     }
+
+    grid->type = idx_file.fields[field].type;
     core::Vector3i from, to, stride;
     idx_file.get_grid(grid->extends, hz_level, from, to, stride);
     return read_idx_grid(idx_file, field, time, hz_level, from, to, stride, grid);
@@ -513,6 +515,8 @@ Error read_idx_grid(
         return Error::VolumeTooBig;
     }
     HANA_ASSERT(grid->data.ptr);
+
+    grid->type = idx_file.fields[field].type;
 
     // since all the samples in hz levels smaller than the min hz level belong to
     // the same idx block, we use the following trick to avoid reading that same
@@ -616,6 +620,7 @@ Error read_idx_grid(
 Error read_idx_grid_inclusive(const IdxFile& idx_file, int field, int time,
                               int hz_level, IN_OUT Grid* grid)
 {
+    grid->type = idx_file.fields[field].type;
     core::Vector3i from, to, stride;
     if (hz_level < idx_file.get_min_hz_level()) {
         hz_level = idx_file.get_min_hz_level() - 1;
