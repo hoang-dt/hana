@@ -8,7 +8,7 @@ workspace "Hana"
     flags { "MultiProcessorCompile" }
     warnings "Extra"
 
-    filter "system:Linux"
+    filter "system:linux or macosx"
         buildoptions "-std=c++11"
     
     filter "configurations:Debug"
