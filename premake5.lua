@@ -16,7 +16,7 @@ workspace "Hana"
         flags { "Symbols" }
         
     filter "configurations:Release"
-        defines { "NDEBUG", "ASSERT_ON" }
+        defines { "NDEBUG", "HANA_ASSERT_ON" }
         flags { "Symbols" }
         optimize "On"
     

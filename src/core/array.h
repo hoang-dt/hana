@@ -11,6 +11,7 @@ namespace hana { namespace core {
 /** Only works for POD types. For other types, use std::vector. */
 template <typename T>
 class Array {
+    // for some reasons on GCC 4.8 I can't use static_assert...
     //static_assert(std::is_trivially_copyable<T>::value, "Non-pod type argument");
 
   public:

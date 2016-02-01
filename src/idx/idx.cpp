@@ -363,6 +363,7 @@ void operator()(const core::StringRef bit_string, int bits_per_block,
     core::Vector3i output_dims = (output_to - output_from ) / output_stride + 1;
     uint64_t dx = output_dims.x;
     uint64_t dxy = output_dims.x * output_dims.y;
+    uint64_t dxyz = output_dims.x * output_dims.y * output_dims.z;
     // keep dividing the volume by 2 alternately along x, y, z (following the bit string)
     while (top >= 0) {
         // pop from the top
@@ -375,7 +376,9 @@ void operator()(const core::StringRef bit_string, int bits_per_block,
             core::Vector3i coord = (top_tuple.from - output_from) / output_stride;
             uint64_t xyz = coord.x + coord.y * dx + coord.z * dxy;
             uint64_t ijk = top_tuple.hz_address - block.hz_address;
-            dst[xyz] = src[ijk];
+            if (xyz < dxyz) {
+                dst[xyz] = src[ijk];
+            }
             continue;
         }
 
