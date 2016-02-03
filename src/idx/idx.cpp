@@ -10,6 +10,10 @@
 #include "error.h"
 #include <algorithm>
 #include <array>
+#include <thread>
+#include <mutex>
+#include <atomic>
+#include <iostream>
 
 namespace hana { namespace idx {
 
@@ -553,6 +557,9 @@ Error read_idx_grid(
     FILE* file = nullptr;
     uint64_t last_first_block_index = (uint64_t)-1;
 
+    std::atomic_int thread_count = 0;
+    std::mutex mutex;
+
     for (size_t i = 0; i < idx_blocks.size(); ++i) {
         IdxBlock& block = idx_blocks[i];
         Error err = read_idx_block(idx_file, field, time,
@@ -568,50 +575,76 @@ Error read_idx_grid(
             return Error::CompressionUnsupported;
         }
         if (block.format == Format::RowMajor) {
-            forward_functor<put_block_to_grid, int>(block.type.bytes(),
-                block, output_from, output_to, output_stride, grid);
+            ++thread_count;
+            std::thread copy_block_task([&]() {
+                forward_functor<put_block_to_grid, int>(block.type.bytes(),
+                    block, output_from, output_to, output_stride, grid);
+                mutex.lock();
+                freelist.deallocate(block.data);
+                --thread_count;
+                mutex.unlock();
+            });
+            copy_block_task.detach();
         } else if (block.format == Format::Hz) {
             if (hz_level < idx_file.get_min_hz_level()) {
-                // here we break up the first idx block into multiple "virtual"
-                // blocks, each consisting of only samples in one hz level
-                IdxBlock b = block;
-                b.bytes = b.type.bytes();
-                HANA_ASSERT(b.hz_address == 0);
-                b.hz_level = 0;
-                b.data.bytes = b.bytes;
-                b.from = b.to = Vector3i(0, 0, 0);
-                b.stride = get_intra_block_strides(idx_file.bit_string, b.hz_level);
-                uint64_t old_bytes = 0;
-                uint64_t old_hz = 1;
-                for (int j = 0; b.bytes < block.bytes; ++j) {
-                    // each iteration corresponds to one hz level, starting from 0
-                    // until min_hz_level - 1
-                    forward_functor<put_block_to_grid_hz, int>(b.type.bytes(),
-                        idx_file.bit_string, idx_file.bits_per_block, b,
-                        output_from, output_to, output_stride, grid);
-                    ++b.hz_level;
-                    b.data.ptr = b.data.ptr + b.bytes;
-                    b.bytes += old_bytes;
-                    old_bytes = b.bytes;
+                ++thread_count;
+                std::thread copy_block_task([&]() {
+                    // here we break up the first idx block into multiple "virtual"
+                    // blocks, each consisting of only samples in one hz level
+                    IdxBlock b = block;
+                    b.bytes = b.type.bytes();
+                    HANA_ASSERT(b.hz_address == 0);
+                    b.hz_level = 0;
                     b.data.bytes = b.bytes;
-                    b.hz_address += old_hz;
-                    old_hz = b.hz_address;
-                    b.from = get_first_coord(idx_file.bit_string, b.hz_level);
+                    b.from = b.to = Vector3i(0, 0, 0);
                     b.stride = get_intra_block_strides(idx_file.bit_string, b.hz_level);
-                    b.to = get_last_coord(idx_file.bit_string, b.hz_level);
-                }
+                    uint64_t old_bytes = 0;
+                    uint64_t old_hz = 1;
+                    for (int j = 0; b.bytes < block.bytes; ++j) {
+                        // each iteration corresponds to one hz level, starting from 0
+                        // until min_hz_level - 1
+                        forward_functor<put_block_to_grid_hz, int>(b.type.bytes(),
+                            idx_file.bit_string, idx_file.bits_per_block, b,
+                            output_from, output_to, output_stride, grid);
+                        ++b.hz_level;
+                        b.data.ptr = b.data.ptr + b.bytes;
+                        b.bytes += old_bytes;
+                        old_bytes = b.bytes;
+                        b.data.bytes = b.bytes;
+                        b.hz_address += old_hz;
+                        old_hz = b.hz_address;
+                        b.from = get_first_coord(idx_file.bit_string, b.hz_level);
+                        b.stride = get_intra_block_strides(idx_file.bit_string, b.hz_level);
+                        b.to = get_last_coord(idx_file.bit_string, b.hz_level);
+                    }
+
+                    mutex.lock();
+                    freelist.deallocate(block.data);
+                    --thread_count;
+                    mutex.unlock();
+                });
+                copy_block_task.detach();
             }
             else { // for hz levels >= min hz level
-                forward_functor<put_block_to_grid_hz, int>(block.type.bytes(),
-                    idx_file.bit_string, idx_file.bits_per_block, block,
-                    output_from, output_to, output_stride, grid);
+                ++thread_count;
+                std::thread copy_block_task([&](){
+                    forward_functor<put_block_to_grid_hz, int>(block.type.bytes(),
+                        idx_file.bit_string, idx_file.bits_per_block, block,
+                        output_from, output_to, output_stride, grid);
+                    mutex.lock();
+                    freelist.deallocate(block.data);
+                    --thread_count;
+                    mutex.unlock();
+                });
+                copy_block_task.detach();
             }
         } else {
-            return Error::InvalidFormat;
+            error = Error::InvalidFormat;
         }
-
-        freelist.deallocate(block.data);
     }
+
+    // wait for all the threads to finish
+    while (thread_count > 0) {}
 
     if (file) {
         fclose(file);

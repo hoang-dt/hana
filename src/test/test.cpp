@@ -233,15 +233,14 @@ void performance_test()
 
     IdxFile idx_file;
 
-    // NOTE: this dataset is not included in the data directory
-    idx::Error error = read_idx_file("d:/Datasets/flame_heat_200_row_major/flame_heat_row_major.idx", &idx_file);
+    idx::Error error = read_idx_file("../../data/magnetic_reconnection.idx", &idx_file);
     if (error.code != core::Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
     }
 
     int hz_level = idx_file.get_max_hz_level();
-    int field = idx_file.get_field_index("data");
+    int field = idx_file.get_field_index("value");
     int time = 0;
 
     Grid grid;
@@ -271,11 +270,11 @@ void performance_test()
 
 int main()
 {
-    test_read_idx_grid_1();
-    test_read_idx_grid_2();
-    test_read_idx_grid_3();
-    test_read_idx_grid_4();
-    test_read_idx_grid_5();
-    //performance_test();
+    //test_read_idx_grid_1();
+    //test_read_idx_grid_2();
+    //test_read_idx_grid_3();
+    //test_read_idx_grid_4();
+    //test_read_idx_grid_5();
+    performance_test();
     return 0;
 }

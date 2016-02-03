@@ -61,6 +61,12 @@ Vector3<T> operator*(const Vector3<T>& a, const Vector3<T>& b)
 }
 
 template <typename T>
+Vector3<T> operator*(const Vector3<T>& a, T x)
+{
+    return Vector3<T>(a.x * x, a.y * x, a.z * x);
+}
+
+template <typename T>
 Vector3<T> operator/(const Vector3<T>& a, const Vector3<T>& b)
 {
     T x = b.x != 0 ? a.x / b.x : 0;
