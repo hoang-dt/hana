@@ -557,7 +557,7 @@ Error read_idx_grid(
     FILE* file = nullptr;
     uint64_t last_first_block_index = (uint64_t)-1;
 
-    std::atomic_int thread_count = 0;
+    std::atomic_int thread_count{0};
     std::mutex mutex;
 
     for (size_t i = 0; i < idx_blocks.size(); ++i) {
