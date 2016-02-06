@@ -265,6 +265,9 @@ void get_block_addresses(const IdxFile& idx_file, const Volume& vol, int hz_leve
         [](const IdxBlock& a, const IdxBlock& b) { return a.hz_address < b.hz_address; });
 }
 
+// We need exclusive access to the memory allocator for the blocks.
+std::mutex mutex;
+
 Error read_idx_block(
     const IdxFile& idx_file, int field, int time, IN_OUT uint64_t* last_first_block_index,
     IN_OUT FILE** file, IN_OUT core::Array<IdxBlockHeader>* block_headers,
@@ -312,7 +315,9 @@ Error read_idx_block(
     block->type = idx_file.fields[field].type;
 
     // read the block's actual data
+    mutex.lock();
     block->data = alloc.allocate(block->bytes);
+    mutex.unlock();
     fseek(*file, block_offset, SEEK_SET);
     if (fread(block->data.ptr, block->data.bytes, 1, *file) != 1) {
         return Error::BlockReadFailed; // critical error
@@ -558,7 +563,6 @@ Error read_idx_grid(
     uint64_t last_first_block_index = (uint64_t)-1;
 
     std::atomic_int thread_count{0};
-    std::mutex mutex;
 
     for (size_t i = 0; i < idx_blocks.size(); ++i) {
         IdxBlock& block = idx_blocks[i];
