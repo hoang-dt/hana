@@ -7,7 +7,7 @@
 namespace hana { namespace core { namespace logger {
 
 namespace detail {
-char* log_level_str[] = { "Fatal", "Error", "Warning", "Info", "Debug", "Trace" };
+const char* log_level_str[] = { "Fatal", "Error", "Warning", "Info", "Debug", "Trace" };
 
 LogChannel& channel(int cid)
 {

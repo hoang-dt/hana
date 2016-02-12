@@ -41,8 +41,8 @@ core::Vector3i get_strides(core::StringRef bit_string, int len)
     HANA_ASSERT(len >= 0);
     using namespace core;
     core::Vector3i stride(0, 0, 0);
-    int start = max(static_cast<int>(bit_string.size) - len, 0);
-    for (int i = start; i < bit_string.size; ++i) {
+    size_t start = max(static_cast<int>(bit_string.size) - len, 0);
+    for (size_t i = start; i < bit_string.size; ++i) {
         if (bit_string[i] == '0') {
             ++stride.x;
         }
@@ -101,7 +101,7 @@ core::Vector3i get_first_coord(core::StringRef bit_string, int hz_level)
     // count the number of "bits" that is the same with the one at position pos
     int count = 0;
     char c = bit_string[pos];
-    for (int i = pos + 1; i < bit_string.size; ++i) {
+    for (size_t i = pos + 1; i < bit_string.size; ++i) {
         if (bit_string[i] == c) {
             ++count;
         }
