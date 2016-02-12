@@ -16,5 +16,6 @@ elseif (MSVC)
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
 endif()
 
-add_subdirectory(src)
+find_package(Threads)
 
+add_subdirectory(src)

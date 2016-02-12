@@ -67,7 +67,7 @@ void get_file_name(const IdxFile& idx_file, int time, uint64_t hz_address,
     // build the template parts backwards (%03x/%04x...)
     for (int i = 0; name_template.num_hex_bits[i] != 0; ++i) {
         last_num_hex_bits = name_template.num_hex_bits[i];
-        for (size_t j = 0; j < last_num_hex_bits; ++j) {
+        for (int j = 0; j < last_num_hex_bits; ++j) {
             file_name.ptr[pos--] = hex_digits[hz_address & 0xfu]; // take 4 last bits
             hz_address >>= 4;
         }
@@ -120,7 +120,7 @@ core::Vector3i deinterleave_bits(core::StringRef bit_string, uint64_t val)
 {
     core::Vector3i coord(0, 0, 0);
     const uint64_t one = 1;
-    for (int i = 0; i < bit_string.size; ++i) {
+    for (size_t i = 0; i < bit_string.size; ++i) {
         char v = bit_string[i];
         int j = static_cast<int>(bit_string.size) - i - 1;
         if (v == '0') {

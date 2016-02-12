@@ -19,7 +19,7 @@ enum LogLevel { Fatal, Error, Warning, Info, Debug, Trace, NumLevels };
 namespace detail {
 
 /** Literal strings for the LogLevel enum. */
-extern char* log_level_str[];
+extern const char* log_level_str[];
 
 /** A log channel has a name and an output stream (e.g. stdout). */
 struct LogChannel {
