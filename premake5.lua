@@ -7,7 +7,9 @@ workspace "Hana"
     defines { "_CRT_SECURE_NO_WARNINGS" }
     flags { "MultiProcessorCompile" }
     warnings "Extra"
-
+    
+    filter "system:linux"
+        buildoptions "-pthread"
     filter "system:linux or macosx"
         buildoptions "-std=c++11"
     
