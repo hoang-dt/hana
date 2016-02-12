@@ -15,7 +15,7 @@ const char* Error::get_error_msg() const
     };
 }
 
-thread_local char error_msg[1024];
+char error_msg[1024];
 
 void set_error_msg(const char* msg) { copy(STR_REF(error_msg), StringRef(msg)); }
 
