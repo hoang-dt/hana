@@ -3,7 +3,7 @@
 namespace hana { namespace core {
 
 /** Store an error message. */
-extern thread_local char error_msg[1024];
+extern char error_msg[1024];
 
 struct Error {
     enum {
