@@ -56,7 +56,7 @@ struct Volume {
 
 /** Rectilinear grid in 3D. */
 struct Grid {
-    Volume extends; // [from, to] in x, y, z
+    Volume extent; // [from, to] in x, y, z
     core::MemBlockChar data;
     IdxType type;
 };

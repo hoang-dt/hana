@@ -122,7 +122,7 @@ core::Vector3i deinterleave_bits(core::StringRef bit_string, uint64_t val)
     const uint64_t one = 1;
     for (size_t i = 0; i < bit_string.size; ++i) {
         char v = bit_string[i];
-        int j = static_cast<int>(bit_string.size) - i - 1;
+        size_t j = bit_string.size - i - 1;
         if (v == '0') {
             coord.x |= (val & (one << j)) >> j;
             coord.x <<= 1;
@@ -426,10 +426,10 @@ void operator()(const core::StringRef bit_string, int bits_per_block,
 
         // push back the two halves to the top of the stack
         // TODO: maybe we can eliminate one test
-        if (grid->extends.from <= second.to && second.from <= grid->extends.to) {
+        if (grid->extent.from <= second.to && second.from <= grid->extent.to) {
             stack[++top] = second;
         }
-        if (grid->extends.from <= first.to && first.from <= grid->extends.to) {
+        if (grid->extent.from <= first.to && first.from <= grid->extent.to) {
             stack[++top] = first;
         }
     }
@@ -446,7 +446,7 @@ void operator()(const IdxBlock& block, const core::Vector3i& output_from,
 {
     using namespace core;
     core::Vector3i from, to;
-    if (!intersect_grid(grid->extends, block.from, block.to, block.stride, from, to)) {
+    if (!intersect_grid(grid->extent, block.from, block.to, block.stride, from, to)) {
         return;
     }
 
@@ -497,7 +497,7 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
 
     grid->type = idx_file.fields[field].type;
     core::Vector3i from, to, stride;
-    idx_file.get_grid(grid->extends, hz_level, from, to, stride);
+    idx_file.get_grid(grid->extent, hz_level, from, to, stride);
     return read_idx_grid(idx_file, field, time, hz_level, from, to, stride, grid);
 }
 
@@ -520,10 +520,10 @@ Error read_idx_grid(
         return Error::InvalidHzLevel;
     }
     HANA_ASSERT(grid);
-    if (!grid->extends.is_valid()) {
+    if (!grid->extent.is_valid()) {
         return Error::InvalidVolume;
     }
-    if (!grid->extends.is_inside(idx_file.box)) {
+    if (!grid->extent.is_inside(idx_file.box)) {
         return Error::VolumeTooBig;
     }
     HANA_ASSERT(grid->data.ptr);
@@ -550,7 +550,7 @@ Error read_idx_grid(
     // block as if it were in level (min hz level - 1), and we will break this
     // block into multiple smaller "virtual" blocks corresponding to the
     // individual levels later
-    get_block_addresses(idx_file, grid->extends, hz_level, &idx_blocks);
+    get_block_addresses(idx_file, grid->extent, hz_level, &idx_blocks);
 
     // determine the most likely size of each block and use a FreeListAllocator
     // with this size to allocate actual data (not metadata) for the blocks.
@@ -665,7 +665,7 @@ Error read_idx_grid_inclusive(const IdxFile& idx_file, int field, int time,
     if (hz_level < idx_file.get_min_hz_level()) {
         hz_level = idx_file.get_min_hz_level() - 1;
     }
-    idx_file.get_grid_inclusive(grid->extends, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid->extent, hz_level, from, to, stride);
     Error err = read_idx_grid(idx_file, field, time, 0, from, to, stride, grid);
     if (err.code != Error::NoError) {
         return err;

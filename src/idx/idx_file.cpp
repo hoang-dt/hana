@@ -586,7 +586,7 @@ int IdxFile::get_min_hz_level() const
 
 uint64_t IdxFile::get_num_samples_per_field() const
 {
-    return get_logical_extends().get_num_samples();
+    return get_logical_extent().get_num_samples();
 }
 
 uint64_t IdxFile::get_num_samples_per_block() const
@@ -606,7 +606,7 @@ int IdxFile::get_field_sample_size(int field) const
     return fields[field].type.bytes();
 }
 
-Volume IdxFile::get_logical_extends() const
+Volume IdxFile::get_logical_extent() const
 {
     return box;
 }

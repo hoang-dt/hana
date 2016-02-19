@@ -96,7 +96,7 @@ struct IdxFile {
     int get_num_time_steps() const;
 
     /** e.g. 512x256x256 */
-    Volume get_logical_extends() const;
+    Volume get_logical_extent() const;
 
     /** Return the number of fields. */
     int get_num_fields() const;

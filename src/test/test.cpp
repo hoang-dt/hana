@@ -1,9 +1,11 @@
 #include "../idx/idx.h"
 #include "../idx/idx_file.h"
+#include "md5.h"
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
 #include <iostream>
+#include <string>
 
 using namespace hana;
 using namespace hana::core;
@@ -30,12 +32,12 @@ void test_read_idx_grid_1()
     int time = idx_file.get_min_time_step();
 
     Grid grid;
-    grid.extends = idx_file.get_logical_extends();
-    grid.data.bytes = idx_file.get_size_inclusive(grid.extends, field, hz_level);
+    grid.extent = idx_file.get_logical_extent();
+    grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extends, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -47,8 +49,9 @@ void test_read_idx_grid_1()
         return;
     }
 
-    ofstream os("data1.raw", ios::binary);
-    os.write(grid.data.ptr, grid.data.bytes);
+    string hash = md5(grid.data.ptr, (long) grid.data.bytes);
+    cout << "MD5 = " << hash<< "\n";
+    HANA_ASSERT(hash == "b17f827b14d064cf1913dec906484733");
 
     free(grid.data.ptr);
 }
@@ -72,12 +75,12 @@ void test_read_idx_grid_2()
     int time = idx_file.get_max_time_step();
 
     Grid grid;
-    grid.extends = idx_file.get_logical_extends();
-    grid.data.bytes = idx_file.get_size_inclusive(grid.extends, field, hz_level);
+    grid.extent = idx_file.get_logical_extent();
+    grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extends, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -89,8 +92,9 @@ void test_read_idx_grid_2()
         return;
     }
 
-    ofstream os("data2.raw", ios::binary);
-    os.write(grid.data.ptr, grid.data.bytes);
+    string hash = md5(grid.data.ptr, (long) grid.data.bytes);
+    cout << "MD5 = " << hash<< "\n";
+    HANA_ASSERT(hash == "3b7afc6f392b17310eaf624dc271428e");
 
     free(grid.data.ptr);
 }
@@ -116,12 +120,12 @@ void test_read_idx_grid_3()
     int time = idx_file.get_max_time_step();
 
     Grid grid;
-    grid.extends = idx_file.get_logical_extends();
-    grid.data.bytes = idx_file.get_size(grid.extends, field, hz_level);
+    grid.extent = idx_file.get_logical_extent();
+    grid.data.bytes = idx_file.get_size(grid.extent, field, hz_level);
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid(grid.extends, hz_level, from, to, stride);
+    idx_file.get_grid(grid.extent, hz_level, from, to, stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -133,8 +137,9 @@ void test_read_idx_grid_3()
         return;
     }
 
-    ofstream os("data3.raw", ios::binary);
-    os.write(grid.data.ptr, grid.data.bytes);
+    string hash = md5(grid.data.ptr, (long) grid.data.bytes);
+    cout << "MD5 = " << hash<< "\n";
+    HANA_ASSERT(hash == "f25a0711703c6b1ad75945045a87bb70");
 
     free(grid.data.ptr);
 }
@@ -159,13 +164,13 @@ void test_read_idx_grid_4()
     int time = idx_file.get_min_time_step();
 
     Grid grid;
-    grid.extends.from = Vector3i(30, 0, 0);
-    grid.extends.to = Vector3i(100, 63, 63);
-    grid.data.bytes = idx_file.get_size(grid.extends, field, hz_level);
+    grid.extent.from = Vector3i(30, 0, 0);
+    grid.extent.to = Vector3i(100, 63, 63);
+    grid.data.bytes = idx_file.get_size(grid.extent, field, hz_level);
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid(grid.extends, hz_level, from, to, stride);
+    idx_file.get_grid(grid.extent, hz_level, from, to, stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -177,8 +182,9 @@ void test_read_idx_grid_4()
         return;
     }
 
-    ofstream os("data4.raw", ios::binary);
-    os.write(grid.data.ptr, grid.data.bytes);
+    string hash = md5(grid.data.ptr, (long) grid.data.bytes);
+    cout << "MD5 = " << hash<< "\n";
+    HANA_ASSERT(hash == "18d0d779c5e1395c077476f1a6da53e5");
 
     free(grid.data.ptr);
 }
@@ -201,13 +207,13 @@ void test_read_idx_grid_5()
     int time = idx_file.get_min_time_step();
 
     Grid grid;
-    grid.extends.from = Vector3i(70, 0, 0);
-    grid.extends.to = Vector3i(70, 63, 63);
-    grid.data.bytes = idx_file.get_size_inclusive(grid.extends, field, hz_level);
+    grid.extent.from = Vector3i(70, 0, 0);
+    grid.extent.to = Vector3i(70, 63, 63);
+    grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extends, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -219,8 +225,9 @@ void test_read_idx_grid_5()
         return;
     }
 
-    ofstream os("data5.raw", ios::binary);
-    os.write(grid.data.ptr, grid.data.bytes);
+    string hash = md5(grid.data.ptr, (long)grid.data.bytes);
+    cout << "MD5 = " << hash << "\n";
+    HANA_ASSERT(hash == "107a1d8b1107130965e783f4f8fcf340");
 
     free(grid.data.ptr);
 }
@@ -244,12 +251,12 @@ void performance_test()
     int time = 0;
 
     Grid grid;
-    grid.extends = idx_file.get_logical_extends();
-    grid.data.bytes = idx_file.get_size_inclusive(grid.extends, field, hz_level);
+    grid.extent = idx_file.get_logical_extent();
+    grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extends, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -270,11 +277,11 @@ void performance_test()
 
 int main()
 {
-    //test_read_idx_grid_1();
-    //test_read_idx_grid_2();
-    //test_read_idx_grid_3();
-    //test_read_idx_grid_4();
-    //test_read_idx_grid_5();
-    performance_test();
+    test_read_idx_grid_1();
+    test_read_idx_grid_2();
+    test_read_idx_grid_3();
+    test_read_idx_grid_4();
+    test_read_idx_grid_5();
+    //performance_test();
     return 0;
 }
