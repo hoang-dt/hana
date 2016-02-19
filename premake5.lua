@@ -25,6 +25,7 @@ workspace "Hana"
     filter "configurations:Production"
         defines { "NDEBUG" }
         optimize "Full"
+        vectorextensions "AVX"
     
 project "core"
     kind "StaticLib"
