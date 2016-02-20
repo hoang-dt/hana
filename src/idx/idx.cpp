@@ -12,8 +12,6 @@
 #include <array>
 #include <thread>
 #include <mutex>
-#include <atomic>
-#include <iostream>
 
 namespace hana { namespace idx {
 
@@ -562,13 +560,16 @@ Error read_idx_grid(
     FILE* file = nullptr;
     uint64_t last_first_block_index = (uint64_t)-1;
 
-    const size_t num_thread_max = 16; // we spawn a few threads at a time to avoid
-                                      // over subscribing the system
-    std::atomic_int thread_count{0};
+    // if the system has 8 cores (say with Hyperthreading), we use 16 threads.
+    // 1024 is the upper limit for the number of threads.
+    size_t num_thread_max = static_cast<size_t>(std::thread::hardware_concurrency());
+    num_thread_max = min(num_thread_max * 2, (size_t)1024);
+    std::thread threads[1024];
 
     for (size_t i = 0; i < idx_blocks.size(); i += num_thread_max) {
-        for (size_t j = i; j < i + num_thread_max && j < idx_blocks.size(); ++j) {
-            IdxBlock& block = idx_blocks[j];
+        int thread_count = 0;
+        for (size_t j = 0; j < num_thread_max && i + j < idx_blocks.size(); ++j) {
+            IdxBlock& block = idx_blocks[i + j];
             Error err = read_idx_block(idx_file, field, time,
                 &last_first_block_index, &file, &block_headers, &block, freelist);
             if (err == Error::BlockNotFound || err == Error::FileNotFound) {
@@ -583,19 +584,17 @@ Error read_idx_grid(
             }
             if (block.format == Format::RowMajor) {
                 ++thread_count;
-                std::thread copy_block_task([&]() {
+                threads[j] = std::thread([&]() {
                     forward_functor<put_block_to_grid, int>(block.type.bytes(),
                         block, output_from, output_to, output_stride, grid);
                     mutex.lock();
                     freelist.deallocate(block.data);
-                    --thread_count;
                     mutex.unlock();
                 });
-                copy_block_task.detach();
             } else if (block.format == Format::Hz) {
                 if (hz_level < idx_file.get_min_hz_level()) {
                     ++thread_count;
-                    std::thread copy_block_task([&]() {
+                    threads[j] = std::thread([&]() {
                         // here we break up the first idx block into multiple "virtual"
                         // blocks, each consisting of only samples in one hz level
                         IdxBlock b = block;
@@ -627,23 +626,19 @@ Error read_idx_grid(
 
                         mutex.lock();
                         freelist.deallocate(block.data);
-                        --thread_count;
                         mutex.unlock();
                     });
-                    copy_block_task.detach();
                 }
                 else { // for hz levels >= min hz level
                     ++thread_count;
-                    std::thread copy_block_task([&](){
+                    threads[j] = std::thread([&](){
                         forward_functor<put_block_to_grid_hz, int>(block.type.bytes(),
                             idx_file.bit_string, idx_file.bits_per_block, block,
                             output_from, output_to, output_stride, grid);
                         mutex.lock();
                         freelist.deallocate(block.data);
-                        --thread_count;
                         mutex.unlock();
                     });
-                    copy_block_task.detach();
                 }
             } else {
                 error = Error::InvalidFormat;
@@ -651,7 +646,10 @@ Error read_idx_grid(
         }
 
         // wait for all the threads to finish before spawning new ones
-        while (thread_count > 0) {}
+        for (size_t j = 0; j < thread_count; ++j) {
+            threads[j].join();
+        }
+        thread_count = 0;
     }
 
     if (file) {

@@ -282,6 +282,6 @@ int main()
     test_read_idx_grid_3();
     test_read_idx_grid_4();
     test_read_idx_grid_5();
-    //performance_test();
+    performance_test();
     return 0;
 }
