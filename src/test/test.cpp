@@ -232,6 +232,49 @@ void test_read_idx_grid_5()
     free(grid.data.ptr);
 }
 
+// Read at a very low hz level.
+void test_read_idx_grid_6()
+{
+    cout << "Test 6" << endl;
+
+    IdxFile idx_file;
+
+    idx::Error error = read_idx_file("../../data/flame_small_o2.idx", &idx_file);
+    if (error.code != core::Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    int hz_level = 3;
+    int field = idx_file.get_field_index("o2");
+    int time = idx_file.get_min_time_step();
+
+    Grid grid;
+    grid.extent.from = Vector3i(0, 0, 0);
+    grid.extent.to = Vector3i(63, 63, 63);
+    grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
+    grid.data.ptr = (char*)malloc(grid.data.bytes);
+
+    Vector3i from, to, stride;
+    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    Vector3i dim = (to - from) / stride + 1;
+    cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
+
+    error = read_idx_grid_inclusive(idx_file, field, time, hz_level, &grid);
+    idx::deallocate_memory();
+
+    if (error.code != core::Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    string hash = md5(grid.data.ptr, (long)grid.data.bytes);
+    cout << "MD5 = " << hash << "\n";
+    //HANA_ASSERT(hash == "107a1d8b1107130965e783f4f8fcf340");
+
+    free(grid.data.ptr);
+}
+
 void performance_test()
 {
     auto begin = clock();
@@ -282,6 +325,7 @@ int main()
     test_read_idx_grid_3();
     test_read_idx_grid_4();
     test_read_idx_grid_5();
+    test_read_idx_grid_6();
     performance_test();
     return 0;
 }

@@ -371,6 +371,7 @@ void operator()(const core::StringRef bit_string, int bits_per_block,
     uint64_t dx = output_dims.x;
     uint64_t dxy = output_dims.x * output_dims.y;
     uint64_t dxyz = output_dims.x * output_dims.y * output_dims.z;
+    HANA_ASSERT(grid->data.bytes >= dxyz * sizeof(T));
     // keep dividing the volume by 2 alternately along x, y, z (following the bit string)
     while (top >= 0) {
         // pop from the top
