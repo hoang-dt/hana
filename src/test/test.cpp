@@ -232,7 +232,7 @@ void test_read_idx_grid_5()
     free(grid.data.ptr);
 }
 
-// Read at a very low hz level.
+// Read at a very low hz level (row major order, inclusive).
 void test_read_idx_grid_6()
 {
     cout << "Test 6" << endl;
@@ -270,7 +270,49 @@ void test_read_idx_grid_6()
 
     string hash = md5(grid.data.ptr, (long)grid.data.bytes);
     cout << "MD5 = " << hash << "\n";
-    //HANA_ASSERT(hash == "107a1d8b1107130965e783f4f8fcf340");
+    HANA_ASSERT(hash == "b9499e518ce143296c9cdabd66b27a04");
+
+    free(grid.data.ptr);
+}
+
+// Read at a very low hz level (hz order, non-inclusive).
+void test_read_idx_grid_7()
+{
+    cout << "Test 7" << endl;
+
+    IdxFile idx_file;
+
+    idx::Error error = read_idx_file("../../data/flame_small_heat.idx", &idx_file);
+    if (error.code != core::Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    int hz_level = 4;
+    int field = idx_file.get_field_index("heat");
+    int time = idx_file.get_max_time_step();
+
+    Grid grid;
+    grid.extent = idx_file.get_logical_extent();
+    grid.data.bytes = idx_file.get_size(grid.extent, field, hz_level);
+    grid.data.ptr = (char*)malloc(grid.data.bytes);
+
+    Vector3i from, to, stride;
+    idx_file.get_grid(grid.extent, hz_level, from, to, stride);
+    Vector3i dim = (to - from) / stride + 1;
+    cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
+
+    error = read_idx_grid(idx_file, field, time, hz_level, &grid);
+    idx::deallocate_memory();
+
+    if (error.code != core::Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    string hash = md5(grid.data.ptr, (long)grid.data.bytes);
+    cout << "MD5 = " << hash << "\n";
+    HANA_ASSERT(hash == "dc266a8556b763d40a1bdde0a2d040ee");
 
     free(grid.data.ptr);
 }
@@ -326,6 +368,7 @@ int main()
     test_read_idx_grid_4();
     test_read_idx_grid_5();
     test_read_idx_grid_6();
-    performance_test();
+    test_read_idx_grid_7();
+    //performance_test();
     return 0;
 }
