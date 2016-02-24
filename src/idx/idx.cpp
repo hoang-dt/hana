@@ -499,6 +499,10 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
     return read_idx_grid(idx_file, field, time, hz_level, from, to, stride, grid);
 }
 
+// TODO: There is a bug where if the hz_level is less than the minimum hz level,
+// or if we read less than data in a block, the library will write to unallocated
+// memory
+// Check the functions idx_file.get_size....
 Error read_idx_grid(
     const IdxFile& idx_file, int field, int time, int hz_level,
     const core::Vector3i& output_from, const core::Vector3i& output_to,
@@ -585,10 +589,11 @@ Error read_idx_grid(
             if (block.format == Format::RowMajor) {
                 ++thread_count;
                 threads[j] = std::thread([&]() {
-                    forward_functor<put_block_to_grid, int>(block.type.bytes(),
+                    IdxBlock& block_ref = idx_blocks[i + j];
+                    forward_functor<put_block_to_grid, int>(block_ref.type.bytes(),
                         block, output_from, output_to, output_stride, grid);
                     mutex.lock();
-                    freelist.deallocate(block.data);
+                    freelist.deallocate(block_ref.data);
                     mutex.unlock();
                 });
             } else if (block.format == Format::Hz) {
@@ -597,7 +602,9 @@ Error read_idx_grid(
                     threads[j] = std::thread([&]() {
                         // here we break up the first idx block into multiple "virtual"
                         // blocks, each consisting of only samples in one hz level
-                        IdxBlock b = block;
+                        // TODO: the bitsperblock can be too high (larger than the whole dataset itself...)
+                        IdxBlock& block_ref = idx_blocks[i + j];
+                        IdxBlock b = block_ref;
                         b.bytes = b.type.bytes();
                         HANA_ASSERT(b.hz_address == 0);
                         b.hz_level = 0;
@@ -606,7 +613,7 @@ Error read_idx_grid(
                         b.stride = get_intra_block_strides(idx_file.bit_string, b.hz_level);
                         uint64_t old_bytes = 0;
                         uint64_t old_hz = 1;
-                        for (int j = 0; b.bytes < block.bytes; ++j) {
+                        while (b.bytes < block_ref.bytes && b.bytes < grid->data.bytes) {
                             // each iteration corresponds to one hz level, starting from 0
                             // until min_hz_level - 1
                             forward_functor<put_block_to_grid_hz, int>(b.type.bytes(),
@@ -619,24 +626,30 @@ Error read_idx_grid(
                             b.data.bytes = b.bytes;
                             b.hz_address += old_hz;
                             old_hz = b.hz_address;
-                            b.from = get_first_coord(idx_file.bit_string, b.hz_level);
-                            b.stride = get_intra_block_strides(idx_file.bit_string, b.hz_level);
-                            b.to = get_last_coord(idx_file.bit_string, b.hz_level);
+                            if (b.hz_level <= idx_file.bit_string.size) {
+                                b.from = get_first_coord(idx_file.bit_string, b.hz_level);
+                                b.stride = get_intra_block_strides(idx_file.bit_string, b.hz_level);
+                                b.to = get_last_coord(idx_file.bit_string, b.hz_level);
+                            }
+                            else {
+                                break;
+                            }
                         }
 
                         mutex.lock();
-                        freelist.deallocate(block.data);
+                        freelist.deallocate(block_ref.data);
                         mutex.unlock();
                     });
                 }
                 else { // for hz levels >= min hz level
                     ++thread_count;
                     threads[j] = std::thread([&](){
-                        forward_functor<put_block_to_grid_hz, int>(block.type.bytes(),
-                            idx_file.bit_string, idx_file.bits_per_block, block,
+                        IdxBlock& block_ref = idx_blocks[i + j];
+                        forward_functor<put_block_to_grid_hz, int>(block_ref.type.bytes(),
+                            idx_file.bit_string, idx_file.bits_per_block, block_ref,
                             output_from, output_to, output_stride, grid);
                         mutex.lock();
-                        freelist.deallocate(block.data);
+                        freelist.deallocate(block_ref.data);
                         mutex.unlock();
                     });
                 }
