@@ -1,5 +1,5 @@
-#include "../idx/idx.h"
-#include "../idx/idx_file.h"
+#include <hana/idx/idx.h>
+#include <hana/idx/idx_file.h>
 #include "md5.h"
 #include <cstdlib>
 #include <ctime>
