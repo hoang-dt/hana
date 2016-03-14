@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <iosfwd>
 
-#ifdef _WIN32
+#if defined _WIN32 || defined __CYGWIN__
     //#define WIN32_LEAN_AND_MEAN
     //#include <Windows.h>
     #define PATH_MAX 260 // a hack to avoid having to #include <Windows.h>

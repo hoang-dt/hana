@@ -1,5 +1,3 @@
 add_subdirectory(core)
 add_subdirectory(idx)
-add_subdirectory(test)
-
-
+add_subdirectory(tests)
