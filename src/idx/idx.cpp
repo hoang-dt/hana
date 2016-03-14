@@ -635,7 +635,7 @@ Error read_idx_grid(
         }
 
         // wait for all the threads to finish before spawning new ones
-        for (size_t j = 0; j < thread_count; ++j) {
+        for (int j = 0; j < thread_count; ++j) {
             threads[j].join();
         }
         thread_count = 0;

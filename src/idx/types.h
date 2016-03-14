@@ -38,6 +38,7 @@ struct IdxType {
             case IdxPrimitiveType::Int64: return 8 * num_components;
             case IdxPrimitiveType::Float32: return 4 * num_components;
             case IdxPrimitiveType::Float64: return 8 * num_components;
+            case IdxPrimitiveType::Invalid: return 0;
         };
         return 0;
     }
