@@ -597,8 +597,7 @@ Error read_idx_grid(
     // if the system has 8 cores (say with Hyperthreading), we use 16 threads.
     // 1024 is the upper limit for the number of threads.
     size_t num_thread_max = static_cast<size_t>(std::thread::hardware_concurrency());
-    //num_thread_max = min(num_thread_max * 2, (size_t)1024);
-    num_thread_max = 1;
+    num_thread_max = min(num_thread_max * 2, (size_t)1024);
     std::thread threads[1024];
 
     for (size_t i = 0; i < idx_blocks.size(); i += num_thread_max) {
