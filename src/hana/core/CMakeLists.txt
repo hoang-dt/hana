@@ -1,4 +1,8 @@
-add_library(core assert.cpp error.cpp filesystem.cpp logger.cpp string.cpp time.cpp)
+add_library(core
+            allocator.h array.h bitops.h constants.h debugbreak.h error.h
+            filesystem.h logger.h macros.h scope_guard.h streams.h string.h
+            time.h types.h utils.h vector.h
+            assert.cpp error.cpp filesystem.cpp logger.cpp string.cpp time.cpp)
 target_link_libraries(core ${CMAKE_THREAD_LIBS_INIT})
 
 set(CORE_HEADERS

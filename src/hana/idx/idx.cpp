@@ -436,14 +436,14 @@ void operator()(const core::StringRef bit_string, int bits_per_block,
 };
 
 /** Copy data from an idx block to a rectilinear grid, assuming the samples in
-both are in row-major order. */
+both are in row-major order. output_from/to/stride describe the output grid in relation to the
+entire domain. */
 template <typename T>
 struct put_block_to_grid {
 void operator()(const IdxBlock& block, const core::Vector3i& output_from,
                 const core::Vector3i& output_to, const core::Vector3i& output_stride,
                 IN_OUT Grid* grid)
 {
-    using namespace core;
     core::Vector3i from, to;
     if (!intersect_grid(grid->extent, block.from, block.to, block.stride, from, to)) {
         return;
@@ -451,6 +451,7 @@ void operator()(const IdxBlock& block, const core::Vector3i& output_from,
 
     T* dst = reinterpret_cast<T*>(grid->data.ptr);
     T* src = reinterpret_cast<T*>(block.data.ptr);
+    HANA_ASSERT(src && dst);
     // TODO: optimize this loop (parallelize?)
     core::Vector3i input_dims = (block.to - block.from) / block.stride + 1;
     uint64_t sx = input_dims.x;
@@ -460,9 +461,9 @@ void operator()(const IdxBlock& block, const core::Vector3i& output_from,
     uint64_t dxy = output_dims.x * output_dims.y;
     // TODO: maybe write a macro to shorten the code?
     core::Vector3i dd = block.stride / output_stride;
-    for (int z = from.z,
-         k = (from.z - block.from.z) / block.stride.z,
-         zz = (from.z - output_from.z) / output_stride.z;
+    for (int z = from.z, // loop variable
+         k = (from.z - block.from.z) / block.stride.z, // index into the block's buffer
+         zz = (from.z - output_from.z) / output_stride.z; // index into the grid's buffer
          z <= to.z;
          z += block.stride.z, ++k, zz += dd.z) {
         for (int y = from.y,
@@ -478,6 +479,50 @@ void operator()(const IdxBlock& block, const core::Vector3i& output_from,
                 uint64_t ijk = i + j * sx + k * sxy;
                 uint64_t xyz = xx + yy * dx + zz * dxy;
                 dst[xyz] = src[ijk];
+            }
+        }
+    }
+}
+};
+
+/** Copy data from an a rectilinear grid to an idx block, assuming the samples in
+both are in row-major order. Here we don't need to specify the input grid's
+from/to/stride because most of the time (a subset of) the original grid is given. */
+template <typename T>
+struct put_grid_to_block {
+void operator()(const Grid& grid, IN_OUT IdxBlock* block)
+{
+    using namespace core;
+    core::Vector3i from, to;
+    if (!intersect_grid(grid->extent, block.from, block.to, block.stride, from, to)) {
+        return;
+    }
+
+    T* src = reinterpret_cast<T*>(grid->data.ptr);
+    T* dst = reinterpret_cast<T*>(block.data.ptr);
+    HANA_ASSERT(src && dst);
+
+    // TODO: optimize this loop (parallelize?)
+    core::Vector3i output_dims = (block.to - block.from) / block.stride + 1;
+    uint64_t sx = output_dims.x;
+    uint64_t sxy = output_dims.x * output_dims.y;
+    // TODO: maybe write a macro to shorten the code?
+    core::Vector3i dd = block.stride / input_stride;
+    for (int z = from.z,
+        k = (from.z - block->from.z) / block->stride.z, // index into the block's buffer
+        z <= to.z; // loop variable and index into the grid's buffer
+        z += block->stride.z, ++k) {
+        for (int y = from.y,
+            j = (from.y - block->from.y) / block->stride.y,
+            y <= to.y;
+            y += block->stride.y, ++j) {
+            for (int x = from.x,
+                i = (from.x - block->from.x) / block->stride.x,
+                x <= to.x;
+                x += block->stride.x, ++i) {
+                uint64_t ijk = i + j * sx + k * sxy;
+                uint64_t xyz = x + y * dx + z * dxy;
+                dst[ijk] = src[xyz];
             }
         }
     }
@@ -552,7 +597,8 @@ Error read_idx_grid(
     // if the system has 8 cores (say with Hyperthreading), we use 16 threads.
     // 1024 is the upper limit for the number of threads.
     size_t num_thread_max = static_cast<size_t>(std::thread::hardware_concurrency());
-    num_thread_max = min(num_thread_max * 2, (size_t)1024);
+    //num_thread_max = min(num_thread_max * 2, (size_t)1024);
+    num_thread_max = 1;
     std::thread threads[1024];
 
     for (size_t i = 0; i < idx_blocks.size(); i += num_thread_max) {

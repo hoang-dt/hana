@@ -1,7 +1,9 @@
 #pragma once
 
+#include "types.h"
 #include <cstdint>
 #include <cstring>
+#include <iosfwd>
 #include <utility>
 
 namespace hana { namespace idx {
@@ -35,6 +37,15 @@ SMALL_TYPE_WRAPPER(6);
 SMALL_TYPE_WRAPPER(7);
 SMALL_TYPE_WRAPPER(8);
 #undef SMALL_TYPE_WRAPPER
+
+template <typename T, int N>
+std::ostream& operator<<(std::ostream& os, const TypeWrapper<T, N>& tw)
+{
+    for (const auto& v : tw.a) {
+        os << v << " ";
+    }
+    return os;
+}
 
 /** Often times we want to run a function that must work on different primitive
 types (UInt8, UInt32, Float32, etc). Instead of duplicating the same function over

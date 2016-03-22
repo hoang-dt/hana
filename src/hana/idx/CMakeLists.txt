@@ -1,4 +1,6 @@
-add_library(idx error.cpp idx.cpp idx_block.cpp idx_file.cpp types.cpp)
+add_library(idx
+            error.h idx.h idx_block.h idx_file.h types.h utils.h
+            error.cpp idx.cpp idx_block.cpp idx_file.cpp types.cpp)
 target_link_libraries(idx ${CMAKE_THREAD_LIBS_INIT})
 
 set(IDX_HEADERS

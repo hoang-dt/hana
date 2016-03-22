@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <iosfwd>
 
 namespace hana { namespace core {
 
@@ -77,5 +78,19 @@ Vector3<T> operator/(const Vector3<T>& a, const Vector3<T>& b)
 
 using Vector3u64 = Vector3<uint64_t>;
 using Vector3i = Vector3<int>;
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const Vector3<T>& v)
+{
+    os << v.x << " " << v.y << " " << v.z;
+    return os;
+}
+
+template <typename T>
+std::istream& operator>>(std::istream& os, Vector3<T>& v)
+{
+    os >> v.x >> v.y >> v.z;
+    return os;
+}
 
 }}
