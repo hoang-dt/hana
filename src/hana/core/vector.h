@@ -47,7 +47,7 @@ Vector2<T> operator+(const Vector2<T>& a, const Vector2<T>& b)
 template <typename T>
 Vector2<T> operator-(const Vector2<T>& a, T x)
 {
-    return Vector3<T>(a.x - x, a.y - x);
+    return Vector2<T>(a.x - x, a.y - x);
 }
 
 template <typename T>
@@ -73,7 +73,7 @@ Vector2<T> operator/(const Vector2<T>& a, const Vector2<T>& b)
 {
     T x = b.x != 0 ? a.x / b.x : 0;
     T y = b.y != 0 ? a.y / b.y : 0;
-    return Vector3<T>(x, y);
+    return Vector2<T>(x, y);
 }
 
 using Vector2u64 = Vector2<uint64_t>;

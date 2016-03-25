@@ -494,30 +494,33 @@ void operator()(const Grid& grid, IN_OUT IdxBlock* block)
 {
     using namespace core;
     core::Vector3i from, to;
-    if (!intersect_grid(grid->extent, block.from, block.to, block.stride, from, to)) {
+    if (!intersect_grid(grid.extent, block->from, block->to, block->stride, from, to)) {
         return;
     }
 
-    T* src = reinterpret_cast<T*>(grid->data.ptr);
-    T* dst = reinterpret_cast<T*>(block.data.ptr);
+    T* src = reinterpret_cast<T*>(grid.data.ptr);
+    T* dst = reinterpret_cast<T*>(block->data.ptr);
     HANA_ASSERT(src && dst);
 
     // TODO: optimize this loop (parallelize?)
-    core::Vector3i output_dims = (block.to - block.from) / block.stride + 1;
+    core::Vector3i output_dims = (block->to - block->from) / block->stride + 1;
     uint64_t sx = output_dims.x;
     uint64_t sxy = output_dims.x * output_dims.y;
     // TODO: maybe write a macro to shorten the code?
-    core::Vector3i dd = block.stride / input_stride;
+    core::Vector3i input_dims = grid.extent.to - grid.extent.from + 1;
+    uint64_t dx = input_dims.x;
+    uint64_t dxy = input_dims.x * input_dims.y;
+    core::Vector3i dd = block->stride;
     for (int z = from.z,
-        k = (from.z - block->from.z) / block->stride.z, // index into the block's buffer
+        k = (from.z - block->from.z) / block->stride.z; // index into the block's buffer
         z <= to.z; // loop variable and index into the grid's buffer
         z += block->stride.z, ++k) {
         for (int y = from.y,
-            j = (from.y - block->from.y) / block->stride.y,
+            j = (from.y - block->from.y) / block->stride.y;
             y <= to.y;
             y += block->stride.y, ++j) {
             for (int x = from.x,
-                i = (from.x - block->from.x) / block->stride.x,
+                i = (from.x - block->from.x) / block->stride.x;
                 x <= to.x;
                 x += block->stride.x, ++i) {
                 uint64_t ijk = i + j * sx + k * sxy;
