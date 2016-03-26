@@ -1,4 +1,5 @@
 #include "constants.h"
+#include "math.h"
 #include "string.h"
 #include "types.h"
 #include "utils.h"
@@ -123,10 +124,10 @@ bool to_int(StringRef str, int& val)
 
     val = 0;
     int multiplier = str[0] == '-' ? -1 : 1;
-    for (size_t i = 0; i < str.size; ++i) {
+    for (int i = 0; i < str.size; ++i) {
         unsigned int v = str[str.size - i - 1] - '0';
         if (v < 10) {
-            val += multiplier * ((int)v * int(power10_[i]));
+            val += multiplier * ((int)v * int(pow<10>(i)));
         }
         else if ((i + 1 != str.size) || (multiplier != -1)) {
             return false;

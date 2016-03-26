@@ -1,6 +1,7 @@
 #include "../core/macros.h"
 #include "../core/assert.h"
 #include "../core/constants.h"
+#include "../core/math.h"
 #include "../core/string.h"
 #include "../core/utils.h"
 #include "idx_file.h"
@@ -33,6 +34,11 @@ namespace {
     const char description_[] = "description";
 }
 
+void IdxField::set_name(const char* s)
+{
+    strncpy(name, s, sizeof(name));
+}
+
 /** Return the strides in x, y, z assuming the last "len" bits in the bit string
 are fixed. len can be larger than bit_string.size, in which case the strides will
 be larger than the dimensions of the volume itself. */
@@ -56,12 +62,9 @@ core::Vector3i get_strides(core::StringRef bit_string, int len)
     if (len > static_cast<int>(bit_string.size)) {
         stride = stride + 1;
     }
-    HANA_ASSERT(stride.x < ARRAY_SIZE(core::power2_));
-    HANA_ASSERT(stride.y < ARRAY_SIZE(core::power2_));
-    HANA_ASSERT(stride.z < ARRAY_SIZE(core::power2_));
-    stride.x = core::power2_[stride.x];
-    stride.y = core::power2_[stride.y];
-    stride.z = core::power2_[stride.z];
+    stride.x = core::pow<2>(stride.x);
+    stride.y = core::pow<2>(stride.y);
+    stride.z = core::pow<2>(stride.z);
     return stride;
 }
 
@@ -110,13 +113,13 @@ core::Vector3i get_first_coord(core::StringRef bit_string, int hz_level)
     // 2 coordinates are 0)
     core::Vector3i coord(0, 0, 0);
     if (c == '0') {
-        coord.x = core::power2_[count];
+        coord.x = core::pow<2>(count);
     }
     else if (c == '1') {
-        coord.y = core::power2_[count];
+        coord.y = core::pow<2>(count);
     }
     else if (c == '2') {
-        coord.z = core::power2_[count];
+        coord.z = core::pow<2>(count);
     }
     return coord;
 }
@@ -147,13 +150,13 @@ core::Vector3i get_last_coord(core::StringRef bit_string, int hz_level)
     core::Vector3i coord(0, 0, 0);
     for (int i = pos; i >= 0; --i) {
         if (bit_string[i] == '0') {
-            coord.x += core::power2_[count.x++];
+            coord.x += core::pow<2>(count.x++);
         }
         else if (bit_string[i] == '1') {
-            coord.y += core::power2_[count.y++];
+            coord.y += core::pow<2>(count.y++);
         }
         else if (bit_string[i] == '2') {
-            coord.z += core::power2_[count.z++];
+            coord.z += core::pow<2>(count.z++);
         }
     }
     return coord;
@@ -693,6 +696,7 @@ idx::Error read_idx_file(const char* file_path, OUT IdxFile* idx_file)
 {
     HANA_ASSERT(file_path);
     HANA_ASSERT(idx_file);
+
     // if the given file name is relative, we get the current directory and add
     // it to the beginning of the given file name
     char buffer[512];
@@ -713,6 +717,29 @@ idx::Error read_idx_file(const char* file_path, OUT IdxFile* idx_file)
         return core::Error::FileNotFound;
     }
     return read_idx_file(input, idx_file);
+}
+
+void create_idx_file(const core::Vector3i& dims, int num_fields, const IdxType& type,
+                     int num_time_steps, OUT IdxFile* idx_file)
+{
+    HANA_ASSERT(dims.x > 0 && dims.y > 0 && dims.z > 0);
+    HANA_ASSERT(num_fields > 0 && num_fields <= IdxFile::num_fields_max);
+    HANA_ASSERT(num_time_steps > 0);
+    HANA_ASSERT(idx_file != nullptr);
+
+    idx_file->box.from = core::Vector3i(0, 0, 0);
+    idx_file->box.to = dims - 1;
+    idx_file->num_fields = num_fields;
+    for (int i = 0; i < num_fields; ++i) {
+        IdxField& field = idx_file->fields[i];
+        char temp[16];
+        sprintf(temp, "data%d", i);
+        field.set_name(temp);
+        field.type = type;
+        field.format = Format::RowMajor;
+        field.compression = Compression::None;
+    }
+
 }
 
 }}

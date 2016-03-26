@@ -1,3 +1,4 @@
+#include <hana/core/math.h>
 #include <hana/idx/idx.h>
 #include <hana/idx/idx_file.h>
 #include "md5.h"
@@ -362,6 +363,8 @@ void performance_test()
 
 int main()
 {
+    using namespace hana::core;
+
     test_read_idx_grid_1();
     test_read_idx_grid_2();
     test_read_idx_grid_3();

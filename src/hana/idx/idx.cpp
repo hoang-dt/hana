@@ -2,6 +2,7 @@
 #include "../core/array.h"
 #include "../core/bitops.h"
 #include "../core/constants.h"
+#include "../core/math.h"
 #include "../core/string.h"
 #include "../core/allocator.h"
 #include "../core/utils.h"
@@ -589,7 +590,7 @@ Error read_idx_grid(
 
     // determine the most likely size of each block and use a FreeListAllocator
     // with this size to allocate actual data (not metadata) for the blocks.
-    size_t block_size = idx_file.fields[field].type.bytes() * size_t(power2_[idx_file.bits_per_block]);
+    size_t block_size = idx_file.fields[field].type.bytes() * size_t(pow<2>(idx_file.bits_per_block));
     if (freelist.size() != block_size) {
         freelist.set_sizes(block_size * 4 / 5, block_size);
     }

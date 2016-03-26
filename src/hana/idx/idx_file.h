@@ -35,6 +35,8 @@ struct IdxField {
     char name[128] = "";
     Format format = Format::RowMajor; // TODO: what is the default?
     Compression compression = Compression::None;
+
+    void set_name(const char* s);
 };
 
 /** Range and format of time steps */
@@ -55,14 +57,16 @@ struct FileNameTemplate {
 
 /** An IDX file */
 struct IdxFile {
+    static const int num_fields_max = 512;
+
     /** Absolute path to the idx file itself. */
     core::Path absolute_path;
-    int version = 0;
+    int version = 6;
     /** 4x4 matrix that transforms the data from logical space to physical space */
-    float logic_to_physic[16] = {}; // TODO: row major or column major?
+    float logic_to_physic[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 }; // TODO: row major or column major?
     /** Logical extends of the dataset (5 pairs of begin-end, inclusive at both ends) */
     Volume box;
-    IdxField fields[512] = {};
+    IdxField fields[num_fields_max] = {};
     int num_fields = 0;
     /** Bit string (e.g. V012012012) */
     char bits[64];
@@ -160,5 +164,8 @@ bool verify_idx_file(const IdxFile& idx_file);
 /** Read an IDX (text) file into memory. */
 idx::Error read_idx_file(const char* file_path, OUT IdxFile* idx_file);
 
+/** Create an IDX file given some essential information of the data */
+void create_idx_file(const core::Vector3i& dims, int num_fields, const IdxType& type,
+                     int num_time_steps, OUT IdxFile* idx_file);
 
 }}
