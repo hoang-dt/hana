@@ -5,22 +5,28 @@
 
 namespace hana { namespace core {
 
-template <int base>
-int pow(int exp)
+
+/** Generate a power table for a particular base and type. */
+template <typename T, int N>
+const T* power(T base)
 {
-    HANA_ASSERT(exp >= 0 && exp < 64);
-
-    static int memoir[64] = { 0 };
-    static int last_exp = 0;
+    static T memoir[N] = { 0 };
     memoir[0] = 1;
-
-    int result = memoir[min(last_exp, exp)];
-    if (exp > last_exp) {
-        for (int i = last_exp + 1; i <= exp; ++i) {
-            memoir[i] = (result = result * base);
-        }
-        last_exp = exp;
+    for (int i = 1; i <= N; ++i) {
+        memoir[i] = memoir[i - 1] * base;
     }
+    return memoir;
+}
+
+static auto pow2 = power<int, 31>(2);
+static auto pow10 = power<int, 9>(10);
+
+/** Find the first power of, say, 2 that is greater than or equal to the given number. */
+inline int find_pow_greater_equal(int base, int num)
+{
+    int result = 1;
+    while (result < num)
+        result *= base;
     return result;
 }
 

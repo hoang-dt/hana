@@ -127,7 +127,7 @@ bool to_int(StringRef str, int& val)
     for (int i = 0; i < str.size; ++i) {
         unsigned int v = str[str.size - i - 1] - '0';
         if (v < 10) {
-            val += multiplier * ((int)v * int(pow<10>(i)));
+            val += multiplier * ((int)v * int(pow10[i]));
         }
         else if ((i + 1 != str.size) || (multiplier != -1)) {
             return false;

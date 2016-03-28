@@ -62,9 +62,9 @@ core::Vector3i get_strides(core::StringRef bit_string, int len)
     if (len > static_cast<int>(bit_string.size)) {
         stride = stride + 1;
     }
-    stride.x = core::pow<2>(stride.x);
-    stride.y = core::pow<2>(stride.y);
-    stride.z = core::pow<2>(stride.z);
+    stride.x = core::pow2[stride.x];
+    stride.y = core::pow2[stride.y];
+    stride.z = core::pow2[stride.z];
     return stride;
 }
 
@@ -113,13 +113,13 @@ core::Vector3i get_first_coord(core::StringRef bit_string, int hz_level)
     // 2 coordinates are 0)
     core::Vector3i coord(0, 0, 0);
     if (c == '0') {
-        coord.x = core::pow<2>(count);
+        coord.x = core::pow2[count];
     }
     else if (c == '1') {
-        coord.y = core::pow<2>(count);
+        coord.y = core::pow2[count];
     }
     else if (c == '2') {
-        coord.z = core::pow<2>(count);
+        coord.z = core::pow2[count];
     }
     return coord;
 }
@@ -150,13 +150,13 @@ core::Vector3i get_last_coord(core::StringRef bit_string, int hz_level)
     core::Vector3i coord(0, 0, 0);
     for (int i = pos; i >= 0; --i) {
         if (bit_string[i] == '0') {
-            coord.x += core::pow<2>(count.x++);
+            coord.x += core::pow2[count.x++];
         }
         else if (bit_string[i] == '1') {
-            coord.y += core::pow<2>(count.y++);
+            coord.y += core::pow2[count.y++];
         }
         else if (bit_string[i] == '2') {
-            coord.z += core::pow<2>(count.z++);
+            coord.z += core::pow2[count.z++];
         }
     }
     return coord;
@@ -740,6 +740,7 @@ void create_idx_file(const core::Vector3i& dims, int num_fields, const IdxType& 
         field.compression = Compression::None;
     }
 
+    // TODO
 }
 
 }}
