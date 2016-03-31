@@ -29,6 +29,14 @@ bool check_bit(T val, int i)
     return (1 & (val >> i));
 }
 
+/** Flip the i(th) least significant bit of val. Index starts at 0. */
+template <typename T>
+void flip_bit(T& val, int i)
+{
+    HANA_ASSERT(i < sizeof(T) * 8);
+    val ^= static_cast<T>(1ull << i);
+}
+
 /** Count the number of trailing zero bits. */
 // TODO: un-inline this
 inline int num_trailing_zeros(uint64_t v)
