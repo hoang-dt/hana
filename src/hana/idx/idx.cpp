@@ -153,7 +153,7 @@ level = 3  ab1000  0001ab
 level = 4  abc100  001abc
 level = 5  abcd10  01abcd
 level = 6  abcde1  1abcde
-This routines require the bit string's length to be less than 64. */
+This routine requires the bit string's length to be less than 64. */
 uint64_t z_to_hz(core::StringRef bit_string, uint64_t z)
 {
     HANA_ASSERT(bit_string.size > 0 && bit_string.size < 64);
