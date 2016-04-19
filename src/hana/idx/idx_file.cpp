@@ -39,6 +39,23 @@ void IdxField::set_name(const char* s)
     strncpy(name, s, sizeof(name));
 }
 
+IdxFile::IdxFile(const core::Path& pth)
+{
+    absolute_path = pth;
+    bits[0] = '\0';
+}
+
+IdxFile::IdxFile(const IdxFile& other)
+    : IdxFileBase(other)
+    , bit_string(core::StringRef(bits + 1)) {}
+
+IdxFile& IdxFile::operator=(const IdxFile& other)
+{
+    detail::IdxFileBase::operator=(other);
+    bit_string = core::StringRef(bits + 1);
+    return *this;
+}
+
 /** Return the strides in x, y, z assuming the last "len" bits in the bit string
 are fixed. len can be larger than bit_string.size, in which case the strides will
 be larger than the dimensions of the volume itself. */

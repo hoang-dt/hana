@@ -4,6 +4,11 @@ This file defines useful macros.
 */
 
 #define ARRAY_SIZE(x) sizeof(x) / sizeof(*(x))
+#define COPY_ARRAY(dst, src) \
+    HANA_ASSERT(ARRAY_SIZE(src) == ARRAY_SIZE(dst)); \
+    for (size_t i = 0; i < ARRAY_SIZE(src); ++i) { \
+        dst[i] = src[i]; \
+    }
 #define BIT_SIZE(x) sizeof(x) * 8
 
 #define OUT // useful to annotate output arguments

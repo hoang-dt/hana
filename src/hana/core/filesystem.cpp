@@ -26,6 +26,24 @@ Path::Path(StringRef path_str)
     construct_from(path_str);
 }
 
+Path::Path(const Path& other) : PathBase(other)
+{
+    for (size_t i = 0; i < num_components_; ++i) {
+        components_[i].ptr = buffer_ + (other.components_[i].cptr - other.buffer_);
+        components_[i].size = other.components_[i].size;
+    }
+}
+
+Path& Path::operator=(const Path& other)
+{
+    detail::PathBase::operator=(other);
+    for (size_t i = 0; i < num_components_; ++i) {
+        components_[i].ptr = buffer_ + (other.components_[i].cptr - other.buffer_);
+        components_[i].size = other.components_[i].size;
+    }
+    return *this;
+}
+
 void Path::construct_from(StringRef path_str)
 {
     copy(STR_REF(buffer_), path_str);

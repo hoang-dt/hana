@@ -17,18 +17,26 @@
 
 namespace hana { namespace core {
 
-/** Only support the forward slash '/' separator. */
-class Path {
-  private:
+namespace detail {
+class PathBase {
+  protected:
     /** For example, /home/dir/file.txt */
     char buffer_[PATH_MAX];
+    size_t num_components_ = 0;
+};
+}
+
+/** Only support the forward slash '/' separator. */
+class Path : private detail::PathBase {
+  private:
     /** e.g. home, dir, file.txt */
     StringRef components_[PATH_MAX / 2 + 1] = {};
-    size_t num_components_ = 0;
 
   public:
     Path();
     explicit Path(StringRef str);
+    Path(const Path& other);
+    Path& operator=(const Path& other);
 
     /** Construct a Path from a StringRef without using a constructor. */
     void construct_from(StringRef str);

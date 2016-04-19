@@ -55,8 +55,8 @@ struct FileNameTemplate {
     char ext[8] = ""; /** e.g. .bin */
 };
 
-/** An IDX file */
-struct IdxFile {
+namespace detail {
+struct IdxFileBase {
     static const int num_fields_max = 512;
 
     /** Absolute path to the idx file itself. */
@@ -70,8 +70,6 @@ struct IdxFile {
     int num_fields = 0;
     /** Bit string (e.g. V012012012) */
     char bits[64];
-    /** Refers to the "bits" buffer above, but without the V and only until the NULL character. */
-    core::StringRef bit_string;
     /** 2^bits_per_block = number of samples per IDX block */
     int bits_per_block = 0;
     /** Number of idx blocks in a binary file. */
@@ -79,9 +77,18 @@ struct IdxFile {
     int interleave_block = 0; // TODO: what is this
     IdxTime time;
     FileNameTemplate filename_template;
+};
+}
+
+/** An IDX file */
+struct IdxFile : public detail::IdxFileBase {
+    /** Refers to the "bits" buffer above, but without the V and only until the NULL character. */
+    core::StringRef bit_string;
 
     IdxFile() = default;
-    IdxFile(const core::Path& pth) : absolute_path(pth) { bits[0] = '\0'; }
+    IdxFile(const core::Path& pth);
+    IdxFile(const IdxFile& other);
+    IdxFile& operator=(const IdxFile& other);
 
     /** Get the maximum HZ level (the same as the length of the bit string).
     NOTE: the maximum HZ level does not represent the whole data set (only half
