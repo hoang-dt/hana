@@ -6,10 +6,13 @@
 #include "../core/utils.h"
 #include "idx_file.h"
 #include "types.h"
+#include "utils.h"
+#include <catch.hpp>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <utility>
+#include "catch.hpp"
 
 namespace hana { namespace idx {
 
@@ -54,129 +57,6 @@ IdxFile& IdxFile::operator=(const IdxFile& other)
     detail::IdxFileBase::operator=(other);
     bit_string = core::StringRef(bits + 1);
     return *this;
-}
-
-/** Return the strides in x, y, z assuming the last "len" bits in the bit string
-are fixed. len can be larger than bit_string.size, in which case the strides will
-be larger than the dimensions of the volume itself. */
-core::Vector3i get_strides(core::StringRef bit_string, int len)
-{
-    HANA_ASSERT(len >= 0);
-    using namespace core;
-    core::Vector3i stride(0, 0, 0);
-    size_t start = max(static_cast<int>(bit_string.size) - len, 0);
-    for (size_t i = start; i < bit_string.size; ++i) {
-        if (bit_string[i] == '0') {
-            ++stride.x;
-        }
-        else if (bit_string[i] == '1') {
-            ++stride.y;
-        }
-        else if (bit_string[i] == '2') {
-            ++stride.z;
-        }
-    }
-    if (len > static_cast<int>(bit_string.size)) {
-        stride = stride + 1;
-    }
-    stride.x = core::pow2[stride.x];
-    stride.y = core::pow2[stride.y];
-    stride.z = core::pow2[stride.z];
-    return stride;
-}
-
-/** Return the strides (in terms of the first sample) of idx blocks, in x, y, and z. */
-core::Vector3i get_inter_block_strides(core::StringRef bit_string, int hz_level,
-                                       int bits_per_block)
-{
-    HANA_ASSERT(bit_string.size >= hz_level);
-    // count the number of x, y, z in the least significant
-    // (z_level + bits_per_block + 1) bits in the bit_string
-    int len = static_cast<int>(bit_string.size) - hz_level + bits_per_block + 1;
-    // len can get bigger than bit_string.size if the input hz_level is smaller
-    // than the mininum hz level
-    return get_strides(bit_string, len);
-}
-
-/** Return the intra-block strides in x, y, and z for samples in a given hz level. */
-core::Vector3i get_intra_block_strides(core::StringRef bit_string, int hz_level)
-{
-    // count the number of x, y, z in the least significant (z_level + 1) bits
-    // in the bit_string
-    int z_level = static_cast<int>(bit_string.size) - hz_level;
-    int len = z_level + 1;
-    return get_strides(bit_string, len);
-}
-
-/** Get the (x, y, z) coordinates of the first sample in the given hz level. */
-core::Vector3i get_first_coord(core::StringRef bit_string, int hz_level)
-{
-    HANA_ASSERT(hz_level >= 0 && hz_level <= bit_string.size);
-
-    if (hz_level == 0) {
-        return core::Vector3i(0, 0, 0);
-    }
-
-    int pos = hz_level - 1; // the position of the right-most 1 bit in the bit string
-    // count the number of "bits" that is the same with the one at position pos
-    int count = 0;
-    char c = bit_string[pos];
-    for (size_t i = pos + 1; i < bit_string.size; ++i) {
-        if (bit_string[i] == c) {
-            ++count;
-        }
-    }
-    // raise the corresponding coordinate to the appropriate power of 2 (the other
-    // 2 coordinates are 0)
-    core::Vector3i coord(0, 0, 0);
-    if (c == '0') {
-        coord.x = core::pow2[count];
-    }
-    else if (c == '1') {
-        coord.y = core::pow2[count];
-    }
-    else if (c == '2') {
-        coord.z = core::pow2[count];
-    }
-    return coord;
-}
-
-/** Get the (x, y, z) coordinates of the last sample in the given hz level. */
-core::Vector3i get_last_coord(core::StringRef bit_string, int hz_level)
-{
-    HANA_ASSERT(hz_level >= 0 && hz_level <= bit_string.size);
-
-    if (hz_level == 0) {
-        return core::Vector3i(0, 0, 0);
-    }
-
-    int pos = hz_level - 1; // the position of the right-most 1 bit in the bit string
-    int size = static_cast<int>(bit_string.size);
-    core::Vector3i count(0, 0, 0);
-    for (int i = size - 1; i > pos; --i) {
-        if (bit_string[i] == '0') {
-            ++count.x;
-        }
-        else if (bit_string[i] == '1') {
-            ++count.y;
-        }
-        else if (bit_string[i] == '2') {
-            ++count.z;
-        }
-    }
-    core::Vector3i coord(0, 0, 0);
-    for (int i = pos; i >= 0; --i) {
-        if (bit_string[i] == '0') {
-            coord.x += core::pow2[count.x++];
-        }
-        else if (bit_string[i] == '1') {
-            coord.y += core::pow2[count.y++];
-        }
-        else if (bit_string[i] == '2') {
-            coord.z += core::pow2[count.z++];
-        }
-    }
-    return coord;
 }
 
 namespace {
@@ -494,35 +374,6 @@ bool IdxFile::get_grid(int hz_level, OUT core::Vector3i& from,
     return get_grid(box, hz_level, from, to, stride);
 }
 
-/** Intersect a grid (given by from, to, stride) with a volume. Return only the
-part of the grid that are within the volume. Return true if there is at least
-one sample of the grid falls inside the volume. */
-bool intersect_grid(const Volume& vol, const core::Vector3i& from,
-                    const core::Vector3i& to, const core::Vector3i& stride,
-                    OUT core::Vector3i& output_from, OUT core::Vector3i& output_to)
-{
-    HANA_ASSERT(vol.is_valid());
-
-    core::Vector3i min_to = vol.to;
-    min_to.x = core::min(min_to.x, to.x);
-    min_to.y = core::min(min_to.y, to.y);
-    min_to.z = core::min(min_to.z, to.z);
-
-    output_from = from + ((vol.from + stride - 1 - from) / stride) * stride;
-    output_to = from + ((min_to - from) / stride) * stride;
-
-    // we need to do the following corrections because the behavior of integer
-    // division with negative integers are not well defined...
-    if (vol.from.x < from.x) { output_from.x = from.x; }
-    if (vol.from.y < from.y) { output_from.y = from.y; }
-    if (vol.from.z < from.z) { output_from.z = from.z; }
-    if (min_to.x < from.x) { output_to.x = from.x - stride.x; }
-    if (min_to.y < from.y) { output_to.y = from.y - stride.y; }
-    if (min_to.z < from.z) { output_to.z = from.z - stride.z; }
-
-    return output_from <= output_to;
-}
-
 bool IdxFile::get_grid(const Volume& sub_vol, int hz_level,
     OUT core::Vector3i& from, OUT core::Vector3i& to, OUT core::Vector3i& stride) const
 {
@@ -736,33 +587,11 @@ idx::Error read_idx_file(const char* file_path, OUT IdxFile* idx_file)
     return read_idx_file(input, idx_file);
 }
 
-/** Given the dimensions of a volume, guess a suitable bit string for it. */
-void guess_bit_string(const core::Vector3i& dims, OUT core::StringRef bit_string)
-{
-    core::Vector3i power_2_dims;
-    power_2_dims.x = core::pow_greater_equal(2, dims.x);
-    power_2_dims.y = core::pow_greater_equal(2, dims.y);
-    power_2_dims.z = core::pow_greater_equal(2, dims.z);
-    size_t size = 0;
-    while (power_2_dims.x > 1 || power_2_dims.y > 1 || power_2_dims.z > 1) {
-        int max = core::max(power_2_dims.z, core::max(power_2_dims.x, power_2_dims.y));
-        if (max == power_2_dims.x) {
-            power_2_dims.x /= 2;
-            bit_string[size++] = '0';
-        }
-        else if (max == power_2_dims.y) {
-            power_2_dims.y /= 2;
-            bit_string[size++] = '1';
-        }
-        else {
-            power_2_dims.z /= 2;
-            bit_string[size++] = '2';
-        }
-    }
-    bit_string.size = size;
-    HANA_ASSERT(size > 0);
-}
-
+/** Create an IDX file given the dimensions, number of fields, type of every field,
+and the number of time steps.
+Note that the exact type of each field can be changed later if needed. The same
+goes for the exact name of each field. By default, the fields are named data0,
+data1, etc. */
 void create_idx_file(const core::Vector3i& dims, int num_fields,
                      const IdxType& type, int num_time_steps, OUT IdxFile* idx_file)
 {

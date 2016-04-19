@@ -1,6 +1,6 @@
 add_library(idx
             error.h idx.h idx_block.h idx_file.h types.h utils.h
-            error.cpp idx.cpp idx_block.cpp idx_file.cpp types.cpp)
+            error.cpp idx.cpp idx_block.cpp idx_file.cpp types.cpp utils.cpp)
 target_link_libraries(idx ${CMAKE_THREAD_LIBS_INIT})
 
 set(IDX_HEADERS
@@ -31,3 +31,8 @@ export(EXPORT idx NAMESPACE hana:: FILE ${CMAKE_BINARY_DIR}/idx.cmake)
 
 add_dependencies(idx Catch)
 target_include_directories(idx PRIVATE ${CATCH_INCLUDE_DIR})
+
+########################################################
+add_executable(idx_test tests.cpp)
+target_link_libraries(idx_test idx core)
+target_include_directories(idx_test PRIVATE ${CATCH_INCLUDE_DIR})

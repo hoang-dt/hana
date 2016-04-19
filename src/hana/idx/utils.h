@@ -1,6 +1,8 @@
 #pragma once
 
 #include "types.h"
+#include "../core/macros.h"
+#include "../core/string.h"
 #include <cstdint>
 #include <cstring>
 #include <iosfwd>
@@ -90,5 +92,59 @@ auto forward_functor(int bytes, A&& ... args)
         #undef CASE
     }
 }
+
+/** Given the dimensions of a volume, guess a suitable bit string for it.
+For example, a 8x4 2D slice will be assigned a bit string of 00101. */
+void guess_bit_string(const core::Vector3i& dims, OUT core::StringRef bit_string);
+
+/** Get the (x, y, z) coordinates of the last sample in the given hz level. */
+core::Vector3i get_last_coord(core::StringRef bit_string, int hz_level);
+
+/** Get the (x, y, z) coordinates of the first sample in the given hz level. */
+core::Vector3i get_first_coord(core::StringRef bit_string, int hz_level);
+
+/** Return the intra-block strides in x, y, and z for samples in a given hz level. */
+core::Vector3i get_intra_block_strides(core::StringRef bit_string, int hz_level);
+
+/** Return the strides (in terms of the first sample) of idx blocks, in x, y, and z. */
+core::Vector3i get_inter_block_strides(core::StringRef bit_string, int hz_level,
+                                       int bits_per_block);
+
+/** Return the strides in x, y, z assuming the last "len" bits in the bit string
+are fixed. len can be larger than bit_string.size, in which case the strides will
+be larger than the dimensions of the volume itself. */
+core::Vector3i get_strides(core::StringRef bit_string, int len);
+
+/** Interleave the bits of the three inputs, according to the rule given in the
+input bit string (e.g. V012012012). */
+uint64_t interleave_bits(core::StringRef bit_string, core::Vector3i coord);
+
+/** The reverse of interleave bits. */
+core::Vector3i deinterleave_bits(core::StringRef bit_string, uint64_t val);
+
+/** Convert a z address to an hz address.
+                z      hz
+level = 0  000000  000000
+level = 1  100000  000001
+level = 2  a10000  00001a
+level = 3  ab1000  0001ab
+level = 4  abc100  001abc
+level = 5  abcd10  01abcd
+level = 6  abcde1  1abcde
+This routine requires the bit string's length to be less than 64. */
+uint64_t z_to_hz(core::StringRef bit_string, uint64_t z);
+
+/** Convert an hz address to a z address. The reverse of z_to_hz. */
+uint64_t hz_to_z(core::StringRef bit_string, uint64_t hz, int hz_level);
+
+/** Convert an xyz address to an hz address. */
+uint64_t xyz_to_hz(core::StringRef bit_string, core::Vector3i coord);
+
+/** Intersect a grid (given by from, to, stride) with a volume. Return only the
+part of the grid that are within the volume. Return true if there is at least
+one sample of the grid falls inside the volume. */
+bool intersect_grid(const Volume& vol, const core::Vector3i& from,
+                    const core::Vector3i& to, const core::Vector3i& stride,
+                    OUT core::Vector3i& output_from, OUT core::Vector3i& output_to);
 
 }}

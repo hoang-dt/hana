@@ -1,0 +1,260 @@
+#include "utils.h"
+#include "../core/math.h"
+
+namespace hana { namespace idx {
+
+void guess_bit_string(const core::Vector3i& dims, OUT core::StringRef bit_string)
+{
+    core::Vector3i power_2_dims;
+    power_2_dims.x = core::pow_greater_equal(2, dims.x);
+    power_2_dims.y = core::pow_greater_equal(2, dims.y);
+    power_2_dims.z = core::pow_greater_equal(2, dims.z);
+    size_t size = 0;
+    while (power_2_dims.x > 1 || power_2_dims.y > 1 || power_2_dims.z > 1) {
+        int max = core::max(power_2_dims.z, core::max(power_2_dims.x, power_2_dims.y));
+        if (max == power_2_dims.x) {
+            power_2_dims.x /= 2;
+            bit_string[size++] = '0';
+        }
+        else if (max == power_2_dims.y) {
+            power_2_dims.y /= 2;
+            bit_string[size++] = '1';
+        }
+        else {
+            power_2_dims.z /= 2;
+            bit_string[size++] = '2';
+        }
+    }
+    bit_string.size = size;
+    HANA_ASSERT(size > 0);
+}
+
+
+core::Vector3i get_last_coord(core::StringRef bit_string, int hz_level)
+{
+    HANA_ASSERT(hz_level >= 0 && hz_level <= bit_string.size);
+
+    if (hz_level == 0) {
+        return core::Vector3i(0, 0, 0);
+    }
+
+    int pos = hz_level - 1; // the position of the right-most 1 bit in the bit string
+    int size = static_cast<int>(bit_string.size);
+    core::Vector3i count(0, 0, 0);
+    for (int i = size - 1; i > pos; --i) {
+        if (bit_string[i] == '0') {
+            ++count.x;
+        }
+        else if (bit_string[i] == '1') {
+            ++count.y;
+        }
+        else if (bit_string[i] == '2') {
+            ++count.z;
+        }
+    }
+    core::Vector3i coord(0, 0, 0);
+    for (int i = pos; i >= 0; --i) {
+        if (bit_string[i] == '0') {
+            coord.x += core::pow2[count.x++];
+        }
+        else if (bit_string[i] == '1') {
+            coord.y += core::pow2[count.y++];
+        }
+        else if (bit_string[i] == '2') {
+            coord.z += core::pow2[count.z++];
+        }
+    }
+    return coord;
+}
+
+core::Vector3i get_first_coord(core::StringRef bit_string, int hz_level)
+{
+    HANA_ASSERT(hz_level >= 0 && hz_level <= bit_string.size);
+
+    if (hz_level == 0) {
+        return core::Vector3i(0, 0, 0);
+    }
+
+    int pos = hz_level - 1; // the position of the right-most 1 bit in the bit string
+    // count the number of "bits" that is the same with the one at position pos
+    int count = 0;
+    char c = bit_string[pos];
+    for (size_t i = pos + 1; i < bit_string.size; ++i) {
+        if (bit_string[i] == c) {
+            ++count;
+        }
+    }
+    // raise the corresponding coordinate to the appropriate power of 2 (the other
+    // 2 coordinates are 0)
+    core::Vector3i coord(0, 0, 0);
+    if (c == '0') {
+        coord.x = core::pow2[count];
+    }
+    else if (c == '1') {
+        coord.y = core::pow2[count];
+    }
+    else if (c == '2') {
+        coord.z = core::pow2[count];
+    }
+    return coord;
+}
+
+core::Vector3i get_intra_block_strides(core::StringRef bit_string, int hz_level)
+{
+    // count the number of x, y, z in the least significant (z_level + 1) bits
+    // in the bit_string
+    int z_level = static_cast<int>(bit_string.size) - hz_level;
+    int len = z_level + 1;
+    return get_strides(bit_string, len);
+}
+
+/** Return the strides (in terms of the first sample) of idx blocks, in x, y, and z. */
+core::Vector3i get_inter_block_strides(core::StringRef bit_string, int hz_level,
+                                       int bits_per_block)
+{
+    HANA_ASSERT(bit_string.size >= hz_level);
+    // count the number of x, y, z in the least significant
+    // (z_level + bits_per_block + 1) bits in the bit_string
+    int len = static_cast<int>(bit_string.size) - hz_level + bits_per_block + 1;
+    // len can get bigger than bit_string.size if the input hz_level is smaller
+    // than the mininum hz level
+    return get_strides(bit_string, len);
+}
+
+core::Vector3i get_strides(core::StringRef bit_string, int len)
+{
+    HANA_ASSERT(len >= 0);
+    using namespace core;
+    core::Vector3i stride(0, 0, 0);
+    size_t start = max(static_cast<int>(bit_string.size) - len, 0);
+    for (size_t i = start; i < bit_string.size; ++i) {
+        if (bit_string[i] == '0') {
+            ++stride.x;
+        }
+        else if (bit_string[i] == '1') {
+            ++stride.y;
+        }
+        else if (bit_string[i] == '2') {
+            ++stride.z;
+        }
+    }
+    if (len > static_cast<int>(bit_string.size)) {
+        stride = stride + 1;
+    }
+    stride.x = core::pow2[stride.x];
+    stride.y = core::pow2[stride.y];
+    stride.z = core::pow2[stride.z];
+    return stride;
+}
+
+uint64_t interleave_bits(core::StringRef bit_string, core::Vector3i coord)
+{
+    uint64_t interleaved_val = 0;
+    const uint64_t one = 1;
+    HANA_ASSERT(bit_string.size <= BIT_SIZE(uint64_t) + 1 && bit_string.size > 0);
+    // TODO: try re-writing this loop in a more efficient way by removing
+    // data dependency between loop iterations
+    for (int i = int(bit_string.size) - 1; i >= 0; --i) {
+        char v = bit_string[i];
+        int j = static_cast<int>(bit_string.size) - i - 1;
+        if (v == '0') {
+            interleaved_val |= (coord.x & one) << j;
+            coord.x >>= 1;
+        }
+        else if (v == '1') {
+            interleaved_val |= (coord.y & one) << j;
+            coord.y >>= 1;
+        }
+        else if (v == '2') {
+            interleaved_val |= (coord.z & one) << j;
+            coord.z >>= 1;
+        }
+        else {
+            HANA_ASSERT(false);
+        }
+    }
+    return interleaved_val;
+}
+
+core::Vector3i deinterleave_bits(core::StringRef bit_string, uint64_t val)
+{
+    core::Vector3i coord(0, 0, 0);
+    const uint64_t one = 1;
+    for (size_t i = 0; i < bit_string.size; ++i) {
+        char v = bit_string[i];
+        size_t j = bit_string.size - i - 1;
+        if (v == '0') {
+            coord.x |= (val & (one << j)) >> j;
+            coord.x <<= 1;
+        }
+        else if (v == '1') {
+            coord.y |= (val & (one << j)) >> j;
+            coord.y <<= 1;
+        }
+        else if (v == '2') {
+            coord.z |= (val & (one << j)) >> j;
+            coord.z <<= 1;
+        }
+        else {
+            HANA_ASSERT(false);
+        }
+    }
+    coord.x >>= 1;
+    coord.y >>= 1;
+    coord.z >>= 1;
+    return coord;
+}
+
+uint64_t z_to_hz(core::StringRef bit_string, uint64_t z)
+{
+    HANA_ASSERT(bit_string.size > 0 && bit_string.size < 64);
+    z |= uint64_t(1) << (bit_string.size);
+    z /= z & -int64_t(z);
+    z >>= 1;
+    return z;
+}
+
+uint64_t hz_to_z(core::StringRef bit_string, uint64_t hz, int hz_level)
+{
+    HANA_ASSERT(bit_string.size > 0 && bit_string.size < 64 && bit_string.size >= hz_level);
+    int z_level = static_cast<int>(bit_string.size) - hz_level;
+    HANA_ASSERT((hz << z_level) >> z_level == hz);
+    uint64_t z = hz << (z_level + 1);
+    z |= uint64_t(1) << z_level;
+    return z;
+}
+
+uint64_t xyz_to_hz(core::StringRef bit_string, core::Vector3i coord)
+{
+    uint64_t z = interleave_bits(bit_string, coord);
+    uint64_t hz = z_to_hz(bit_string, z);
+    return hz;
+}
+
+bool intersect_grid(const Volume& vol, const core::Vector3i& from,
+                    const core::Vector3i& to, const core::Vector3i& stride,
+                    OUT core::Vector3i& output_from, OUT core::Vector3i& output_to)
+{
+    HANA_ASSERT(vol.is_valid());
+
+    core::Vector3i min_to = vol.to;
+    min_to.x = core::min(min_to.x, to.x);
+    min_to.y = core::min(min_to.y, to.y);
+    min_to.z = core::min(min_to.z, to.z);
+
+    output_from = from + ((vol.from + stride - 1 - from) / stride) * stride;
+    output_to = from + ((min_to - from) / stride) * stride;
+
+    // we need to do the following corrections because the behavior of integer
+    // division with negative integers are not well defined...
+    if (vol.from.x < from.x) { output_from.x = from.x; }
+    if (vol.from.y < from.y) { output_from.y = from.y; }
+    if (vol.from.z < from.z) { output_from.z = from.z; }
+    if (min_to.x < from.x) { output_to.x = from.x - stride.x; }
+    if (min_to.y < from.y) { output_to.y = from.y - stride.y; }
+    if (min_to.z < from.z) { output_to.z = from.z - stride.z; }
+
+    return output_from <= output_to;
+}
+
+}}
