@@ -2,7 +2,10 @@ cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 
 project(hana LANGUAGES CXX C)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 find_package(Threads REQUIRED)
+find_package(Catch REQUIRED)
 
 # Add doxygen target so we can 'make doc'
 find_package(Doxygen)

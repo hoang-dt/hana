@@ -28,3 +28,6 @@ install(TARGETS idx
 install(EXPORT idx NAMESPACE hana:: DESTINATION lib/hana)
 
 export(EXPORT idx NAMESPACE hana:: FILE ${CMAKE_BINARY_DIR}/idx.cmake)
+
+add_dependencies(idx Catch)
+target_include_directories(idx PRIVATE ${CATCH_INCLUDE_DIR})
