@@ -736,8 +736,35 @@ idx::Error read_idx_file(const char* file_path, OUT IdxFile* idx_file)
     return read_idx_file(input, idx_file);
 }
 
-void create_idx_file(const core::Vector3i& dims, int num_fields, const IdxType& type,
-                     int num_time_steps, OUT IdxFile* idx_file)
+/** Given the dimensions of a volume, guess a suitable bit string for it. */
+void guess_bit_string(const core::Vector3i& dims, OUT core::StringRef bit_string)
+{
+    core::Vector3i power_2_dims;
+    power_2_dims.x = core::pow_greater_equal(2, dims.x);
+    power_2_dims.y = core::pow_greater_equal(2, dims.y);
+    power_2_dims.z = core::pow_greater_equal(2, dims.z);
+    size_t size = 0;
+    while (power_2_dims.x > 1 || power_2_dims.y > 1 || power_2_dims.z > 1) {
+        int max = core::max(power_2_dims.z, core::max(power_2_dims.x, power_2_dims.y));
+        if (max == power_2_dims.x) {
+            power_2_dims.x /= 2;
+            bit_string[size++] = '0';
+        }
+        else if (max == power_2_dims.y) {
+            power_2_dims.y /= 2;
+            bit_string[size++] = '1';
+        }
+        else {
+            power_2_dims.z /= 2;
+            bit_string[size++] = '2';
+        }
+    }
+    bit_string.size = size;
+    HANA_ASSERT(size > 0);
+}
+
+void create_idx_file(const core::Vector3i& dims, int num_fields,
+                     const IdxType& type, int num_time_steps, OUT IdxFile* idx_file)
 {
     HANA_ASSERT(dims.x > 0 && dims.y > 0 && dims.z > 0);
     HANA_ASSERT(num_fields > 0 && num_fields <= IdxFile::num_fields_max);

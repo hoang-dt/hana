@@ -5,7 +5,6 @@
 
 namespace hana { namespace core {
 
-
 /** Generate a power table for a particular base and type. */
 template <typename T, int N>
 const T* power(T base)
@@ -22,7 +21,7 @@ static auto pow2 = power<int, 31>(2);
 static auto pow10 = power<int, 9>(10);
 
 /** Find the first power of, say, 2 that is greater than or equal to the given number. */
-inline int find_pow_greater_equal(int base, int num)
+inline int pow_greater_equal(int base, int num)
 {
     int result = 1;
     while (result < num)
