@@ -1,32 +1,38 @@
+#include "idx_file.h"
 #include "utils.h"
 #include "../core/math.h"
 
 namespace hana { namespace idx {
 
-void guess_bit_string(const core::Vector3i& dims, OUT core::StringRef bit_string)
+void guess_bit_string(const core::Vector3i& dims, OUT core::StringRef& bit_string)
 {
     core::Vector3i power_2_dims;
     power_2_dims.x = core::pow_greater_equal(2, dims.x);
     power_2_dims.y = core::pow_greater_equal(2, dims.y);
     power_2_dims.z = core::pow_greater_equal(2, dims.z);
     size_t size = 0;
+    char buffer[detail::IdxFileBase::num_bits_max];
     while (power_2_dims.x > 1 || power_2_dims.y > 1 || power_2_dims.z > 1) {
         int max = core::max(power_2_dims.z, core::max(power_2_dims.x, power_2_dims.y));
-        if (max == power_2_dims.x) {
-            power_2_dims.x /= 2;
-            bit_string[size++] = '0';
+        if (max == power_2_dims.z) {
+            power_2_dims.z /= 2;
+            buffer[size++] = '2';
         }
         else if (max == power_2_dims.y) {
             power_2_dims.y /= 2;
-            bit_string[size++] = '1';
+            buffer[size++] = '1';
         }
         else {
-            power_2_dims.z /= 2;
-            bit_string[size++] = '2';
+            power_2_dims.x /= 2;
+            buffer[size++] = '0';
         }
     }
     bit_string.size = size;
     HANA_ASSERT(size > 0);
+
+    for (size_t i = 0; i < size; ++i) {
+        bit_string[i] = buffer[i];
+    }
 }
 
 

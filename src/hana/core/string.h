@@ -84,6 +84,8 @@ size_t replace(StringRef str, char old_c, char new_c);
 
 bool operator==(StringRef a, StringRef b);
 
+bool operator==(StringRef a, const char* b);
+
 bool start_with(StringRef str, StringRef sub);
 
 bool to_int(StringRef str, int& val);

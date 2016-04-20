@@ -58,6 +58,7 @@ struct FileNameTemplate {
 namespace detail {
 struct IdxFileBase {
     static const int num_fields_max = 512;
+    static const int num_bits_max = 65; /// maximum size of the bit string
 
     /** Absolute path to the idx file itself. */
     core::Path absolute_path;
@@ -69,7 +70,7 @@ struct IdxFileBase {
     IdxField fields[num_fields_max] = {};
     int num_fields = 0;
     /** Bit string (e.g. V012012012) */
-    char bits[64];
+    char bits[num_bits_max];
     /** 2^bits_per_block = number of samples per IDX block */
     int bits_per_block = 0;
     /** Number of idx blocks in a binary file. */

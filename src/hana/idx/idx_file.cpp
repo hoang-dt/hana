@@ -595,12 +595,14 @@ data1, etc. */
 void create_idx_file(const core::Vector3i& dims, int num_fields,
                      const IdxType& type, int num_time_steps, OUT IdxFile* idx_file)
 {
+    using namespace core;
+
     HANA_ASSERT(dims.x > 0 && dims.y > 0 && dims.z > 0);
     HANA_ASSERT(num_fields > 0 && num_fields <= IdxFile::num_fields_max);
     HANA_ASSERT(num_time_steps > 0);
     HANA_ASSERT(idx_file != nullptr);
 
-    idx_file->box.from = core::Vector3i(0, 0, 0);
+    idx_file->box.from = Vector3i(0, 0, 0);
     idx_file->box.to = dims - 1;
     idx_file->num_fields = num_fields;
     for (int i = 0; i < num_fields; ++i) {
@@ -612,6 +614,16 @@ void create_idx_file(const core::Vector3i& dims, int num_fields,
         field.format = Format::RowMajor;
         field.compression = Compression::None;
     }
+
+    idx_file->bit_string = StringRef(idx_file->bits);
+    guess_bit_string(dims, idx_file->bit_string);
+    int pow2_x = pow_greater_equal(2, dims.x);
+    int pow2_y = pow_greater_equal(2, dims.y);
+    int pow2_z = pow_greater_equal(2, dims.z);
+    uint64_t total_samples = (uint64_t)pow2_x * pow2_y * pow2_z;
+
+
+    idx_file->blocks_per_file = 256;
 
     // TODO
 }

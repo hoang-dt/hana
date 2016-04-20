@@ -95,7 +95,7 @@ auto forward_functor(int bytes, A&& ... args)
 
 /** Given the dimensions of a volume, guess a suitable bit string for it.
 For example, a 8x4 2D slice will be assigned a bit string of 00101. */
-void guess_bit_string(const core::Vector3i& dims, OUT core::StringRef bit_string);
+void guess_bit_string(const core::Vector3i& dims, OUT core::StringRef& bit_string);
 
 /** Get the (x, y, z) coordinates of the last sample in the given hz level. */
 core::Vector3i get_last_coord(core::StringRef bit_string, int hz_level);

@@ -111,6 +111,11 @@ bool operator==(StringRef a, StringRef b)
     return true;
 }
 
+bool operator==(StringRef a, const char* b)
+{
+    return operator==(a, StringRef(b));
+}
+
 bool start_with(StringRef str, StringRef sub)
 {
     return sub_string(str, 0, sub.size) == sub;
