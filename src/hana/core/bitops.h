@@ -77,4 +77,19 @@ inline int num_trailing_zeros(uint64_t v)
     return c;
 }
 
+inline int num_leading_zeros(uint64_t v)
+{
+    if (v == 0) {
+        return sizeof(v) * 8;
+    }
+
+    int64_t vv = static_cast<int64_t>(v);
+    int result = 0;
+    while (vv >= 0) {
+        vv = vv << 1;
+        ++result;
+    }
+    return result;
+}
+
 }} // end namespace hana::core

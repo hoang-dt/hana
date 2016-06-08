@@ -137,6 +137,8 @@ uint64_t z_to_hz(core::StringRef bit_string, uint64_t z);
 /** Convert an hz address to a z address. The reverse of z_to_hz. */
 uint64_t hz_to_z(core::StringRef bit_string, uint64_t hz, int hz_level);
 
+uint64_t hz_to_z(core::StringRef bit_string, uint64_t hz);
+
 /** Convert an xyz address to an hz address. */
 uint64_t xyz_to_hz(core::StringRef bit_string, core::Vector3i coord);
 

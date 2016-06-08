@@ -37,7 +37,7 @@ If the number is not a power of the base, round the log down. */
 template <typename T>
 inline int log_int(T base, T num)
 {
-    static_assert(std::is_integral<T>::value, "Integer required.");
+    //static_assert(std::is_integral<T>::value, "Integer required.");
 
     HANA_ASSERT(base > 1);
     HANA_ASSERT(num > 0);

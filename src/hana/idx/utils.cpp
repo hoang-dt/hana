@@ -1,5 +1,6 @@
 #include "idx_file.h"
 #include "utils.h"
+#include "../core/bitops.h"
 #include "../core/math.h"
 
 namespace hana { namespace idx {
@@ -230,11 +231,46 @@ uint64_t hz_to_z(core::StringRef bit_string, uint64_t hz, int hz_level)
     return z;
 }
 
+uint64_t hz_to_z(core::StringRef bit_string, uint64_t hz)
+{
+    HANA_ASSERT(bit_string.size > 0 && bit_string.size < 64);
+    int leading_zeros = core::num_leading_zeros(hz);
+    int z_level = leading_zeros - (64 - bit_string.size);
+    HANA_ASSERT(z_level >= 0);
+    HANA_ASSERT((hz << z_level) >> z_level == hz);
+    uint64_t z = hz << (z_level + 1);
+    z |= uint64_t(1) << z_level;
+    return z;
+}
+
 uint64_t xyz_to_hz(core::StringRef bit_string, core::Vector3i coord)
 {
     uint64_t z = interleave_bits(bit_string, coord);
     uint64_t hz = z_to_hz(bit_string, z);
     return hz;
+}
+
+int hz_to_level(uint64_t hz)
+{
+  int level = 0;
+  while (hz > 0) {
+    hz /= 2;
+    ++level;
+  }
+  return level;
+}
+
+core::Vector3i hz_to_xyz(core::StringRef bit_string, uint64_t hz)
+{
+    HANA_ASSERT(bit_string.size > 0 && bit_string.size < 64);
+    int leading_zeros = core::num_leading_zeros(hz);
+    int z_level = leading_zeros - (64 - bit_string.size);
+    HANA_ASSERT(z_level >= 0);
+    HANA_ASSERT((hz << z_level) >> z_level == hz);
+    uint64_t z = hz << (z_level + 1);
+    z |= uint64_t(1) << z_level;
+    core::Vector3i xyz = deinterleave_bits(bit_string, z);
+    return xyz;
 }
 
 bool intersect_grid(const Volume& vol, const core::Vector3i& from,
