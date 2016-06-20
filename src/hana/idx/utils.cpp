@@ -235,7 +235,7 @@ uint64_t hz_to_z(core::StringRef bit_string, uint64_t hz)
 {
     HANA_ASSERT(bit_string.size > 0 && bit_string.size < 64);
     int leading_zeros = core::num_leading_zeros(hz);
-    int z_level = leading_zeros - (64 - bit_string.size);
+    int z_level = leading_zeros - (64 - static_cast<int>(bit_string.size));
     HANA_ASSERT(z_level >= 0);
     HANA_ASSERT((hz << z_level) >> z_level == hz);
     uint64_t z = hz << (z_level + 1);
@@ -264,7 +264,7 @@ core::Vector3i hz_to_xyz(core::StringRef bit_string, uint64_t hz)
 {
     HANA_ASSERT(bit_string.size > 0 && bit_string.size < 64);
     int leading_zeros = core::num_leading_zeros(hz);
-    int z_level = leading_zeros - (64 - bit_string.size);
+    int z_level = leading_zeros - (64 - static_cast<int>(bit_string.size));
     HANA_ASSERT(z_level >= 0);
     HANA_ASSERT((hz << z_level) >> z_level == hz);
     uint64_t z = hz << (z_level + 1);

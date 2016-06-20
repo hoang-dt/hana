@@ -7,7 +7,9 @@ namespace hana { namespace idx {
 struct Error : public core::Error {
     enum {
         BlockNotFound = core::Error::NumErrors,
+        HeaderNotFound,
         BlockReadFailed,
+        BlockWriteFailed,
         CompressionUnsupported,
         InvalidFormat,
         InvalidHzLevel,

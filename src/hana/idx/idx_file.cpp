@@ -593,7 +593,8 @@ Note that the exact type of each field can be changed later if needed. The same
 goes for the exact name of each field. By default, the fields are named data0,
 data1, etc. */
 void create_idx_file(const core::Vector3i& dims, int num_fields,
-                     const IdxType& type, int num_time_steps, OUT IdxFile* idx_file)
+                     const IdxType& type, int num_time_steps,
+                     OUT IdxFile* idx_file)
 {
     using namespace core;
 
@@ -622,10 +623,17 @@ void create_idx_file(const core::Vector3i& dims, int num_fields,
     int pow2_z = pow_greater_equal(2, dims.z);
     uint64_t total_samples = (uint64_t)pow2_x * pow2_y * pow2_z;
 
-
-    idx_file->blocks_per_file = 256;
+    // use a default block size of 64 KB
+    idx_file->bits_per_block = log_int(2, 64 * 1024);
+    int samples_per_block = pow2[idx_file->bits_per_block];
+    int num_blocks = static_cast<int>(total_samples / samples_per_block);
+    // by default, use 256 blocks per file
+    idx_file->blocks_per_file = min(256, num_blocks);
+    uint64_t samples_per_file = (uint64_t)idx_file->blocks_per_file * samples_per_block;
+    int num_files = static_cast<int>(total_samples / (samples_per_file));
 
     // TODO
+    // compute the file name template
 }
 
 }}

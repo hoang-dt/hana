@@ -21,7 +21,8 @@ For example, if the hz address is 0100'0101'0010'1100 and the file name template
 is ./%02x/%01x/%01x.bin, then the binary file name is ./45/2/c.bin, assuming
 there is no time step template (4 = 0100, 5 = 0101, 2 = 0010, and c = 1100).
 The time step template, if present, will be added to the beginning of the path. */
-void get_file_name(const IdxFile& idx_file, int time, uint64_t hz_address,
+namespace {
+void get_file_name_from_hz(const IdxFile& idx_file, int time, uint64_t hz_address,
                    OUT core::StringRef file_name)
 {
     // TODO: we can optimize a little more by "pre-building" the static parts
@@ -81,7 +82,20 @@ void get_file_name(const IdxFile& idx_file, int time, uint64_t hz_address,
         }
         file_name.ptr[pos--] = '/';
     }
-}
+}}
+
+/** Given a block's hz address, compute the hz address of the first block in the
+file, and the block's index in the file. */
+namespace {
+void get_first_block_in_file(uint64_t block, int bits_per_block, int blocks_per_file,
+                             OUT uint64_t* first_block, OUT int* block_in_file)
+{
+    // block index is the rank of this block (0th block, 1st block, 2nd,...)
+    uint64_t block_id = block >> bits_per_block;
+    *first_block = block_id - (block_id % blocks_per_file);
+    *block_in_file = static_cast<int>(block_id - *first_block);
+    HANA_ASSERT(*block_in_file < blocks_per_file);
+}}
 
 /** Given a 3D extend (a volume), get the (sorted) list of idx block addresses
 that intersect this volume, at a given hz level. The addresses are in hz space.
@@ -154,37 +168,61 @@ void get_block_addresses(const IdxFile& idx_file, const Volume& vol, int hz_leve
         [](const IdxBlock& a, const IdxBlock& b) { return a.hz_address < b.hz_address; });
 }
 
+/** Given a binary file, read all the block headers from the file. */
+namespace {
+Error read_block_headers(IN_OUT FILE** file, const char* bin_path, int field,
+                         int blocks_per_file,
+                         IN_OUT core::Array<IdxBlockHeader>* headers)
+{
+    HANA_ASSERT(file != nullptr);
+    *file = fopen(bin_path, "rb");
+    if (!*file)
+        return Error::FileNotFound;
+    if (fseek(*file, sizeof(IdxFileHeader) +
+        sizeof(IdxBlockHeader) * blocks_per_file * field, SEEK_SET))
+        return Error::HeaderNotFound;
+    if (fread(&(*headers)[0], sizeof(IdxBlockHeader), blocks_per_file, *file)
+        != blocks_per_file)
+        return Error::HeaderNotFound;
+    return Error::NoError;
+}}
+
 // We need exclusive access to the memory allocator for the blocks.
 std::mutex mutex;
-
-Error read_idx_block(
-    const IdxFile& idx_file, int field, int time, IN_OUT uint64_t* last_first_block_index,
-    IN_OUT FILE** file, IN_OUT core::Array<IdxBlockHeader>* block_headers,
-    IN_OUT IdxBlock* block, core::Allocator& alloc)
+/** Read an IDX block out of a file. Beside returning the data in the block, this
+function returns the HZ index of the last first block in a file read, as well as
+the last file read. This is so that the next call to the function does not open
+the same file. The file is returned so that after the last call, the caller can
+close the last file opened. */
+namespace {
+Error read_idx_block(const IdxFile& idx_file, int field, int time, bool read_headers,
+                     IN_OUT uint64_t* last_first_block, IN_OUT FILE** file,
+                     IN_OUT core::Array<IdxBlockHeader>* block_headers,
+                     IN_OUT IdxBlock* block, core::Allocator& alloc)
 {
     using namespace core;
+    HANA_ASSERT(file != nullptr);
+    HANA_ASSERT(last_first_block != nullptr);
+    HANA_ASSERT(block_headers != nullptr);
+    HANA_ASSERT(block != nullptr);
 
-    int bpf = idx_file.blocks_per_file;
     // block index is the rank of this block (0th block, 1st block, 2nd,...)
-    uint64_t block_index = block->hz_address >> idx_file.bits_per_block;
-    uint64_t first_block_index = block_index - (block_index % bpf);
-    uint64_t block_in_file = block_index - first_block_index;
-    HANA_ASSERT(block_in_file < bpf);
-
+    uint64_t first_block = 0;
+    int block_in_file = 0;
+    get_first_block_in_file(block->hz_address, idx_file.bits_per_block,
+                            idx_file.blocks_per_file, &first_block, &block_in_file);
     char bin_path[512]; // path to the binary file that stores the block
-    get_file_name(idx_file, time, first_block_index, STR_REF(bin_path));
-    if (*last_first_block_index != first_block_index) { // open a new file
-        *last_first_block_index = first_block_index;
-        if (*file) {
+    get_file_name_from_hz(idx_file, time, first_block, STR_REF(bin_path));
+    if (*last_first_block != first_block) { // open a new file
+        *last_first_block = first_block;
+        if (*file)
             fclose(*file);
+        if (read_headers) {
+            Error err = read_block_headers(file, bin_path, field,
+                                           idx_file.blocks_per_file, block_headers);
+            if (err.code != Error::NoError)
+                return err;
         }
-        // open the binary file and read all necessary block headers
-        *file = fopen(bin_path, "rb");
-        if (!*file) {
-            return Error::FileNotFound;
-        }
-        fseek(*file, sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * bpf * field, SEEK_SET);
-        fread(&(*block_headers)[0], sizeof(IdxBlockHeader), bpf, *file);
     }
 
     // decode the header for the current block
@@ -192,14 +230,12 @@ Error read_idx_block(
     header.swap_bytes();
     int64_t block_offset = header.offset();
     block->bytes = header.bytes();
-    if (block_offset == 0 || block->bytes == 0) {
+    if (block_offset == 0 || block->bytes == 0)
         return Error::BlockNotFound; // not a critical error
-    }
     block->compression = header.compression();
     HANA_ASSERT(block->compression != Compression::Invalid);
-    if (block->compression == Compression::Invalid) {
+    if (block->compression == Compression::Invalid)
         return Error::InvalidCompression; // critical error
-    }
     block->format = header.format();
     block->type = idx_file.fields[field].type;
 
@@ -208,9 +244,46 @@ Error read_idx_block(
     block->data = alloc.allocate(block->bytes);
     mutex.unlock();
     fseek(*file, block_offset, SEEK_SET);
-    if (fread(block->data.ptr, block->data.bytes, 1, *file) != 1) {
+    if (fread(block->data.ptr, block->data.bytes, 1, *file) != 1)
         return Error::BlockReadFailed; // critical error
+
+    return Error::NoError;
+}}
+
+Error write_idx_block(const IdxFile& idx_file, int field, int time,
+                      const core::Array<IdxBlockHeader>& block_headers,
+                      const IdxBlock& block,
+                      IN_OUT uint64_t* last_first_block_index, IN_OUT FILE** file)
+{
+    using namespace core;
+
+    HANA_ASSERT(last_first_block_index != nullptr);
+    HANA_ASSERT(file != nullptr);
+
+
+    int bpf = idx_file.blocks_per_file;
+    uint64_t block_index = block.hz_address >> idx_file.bits_per_block;
+    uint64_t first_block_index = block_index - (block_index % bpf);
+    uint64_t block_in_file = block_index - first_block_index;
+    HANA_ASSERT(block_in_file < bpf);
+
+    char bin_path[512]; // path to the binary file that stores the block
+    get_file_name_from_hz(idx_file, time, first_block_index, STR_REF(bin_path));
+    if (*last_first_block_index != first_block_index) { // open a new file
+        *last_first_block_index = first_block_index;
+        if (*file)
+            fclose(*file);
+        *file = fopen(bin_path, "wb");
+        if (!*file)
+            return Error::FileNotFound;
     }
+
+    // write the actual data
+    const IdxBlockHeader& header = block_headers[block_in_file];
+    HANA_ASSERT(header.offset() != 0);
+    fseek(*file, header.offset(), SEEK_SET);
+    if (fwrite(block.data.ptr, block.data.bytes, 1, *file) != 1)
+        return Error::BlockWriteFailed;
 
     return Error::NoError;
 }
@@ -228,6 +301,7 @@ struct Tuple {
 the position of the bit that corresponds to the immediate axis of division) is 1,
 corresponding to a division along y.
 This is the most significant bit among the bits dedicated to the current block.*/
+//TODO: remove this
 int dividing_pos(const core::StringRef bit_string, int bits_per_block, int hz_level)
 {
     int z_level = static_cast<int>(bit_string.size) - hz_level;
@@ -345,12 +419,9 @@ void operator()(const IdxBlock& block, const core::Vector3i& output_from,
     HANA_ASSERT(src && dst);
     // TODO: optimize this loop (parallelize?)
     core::Vector3i input_dims = (block.to - block.from) / block.stride + 1;
-    uint64_t sx = input_dims.x;
-    uint64_t sxy = input_dims.x * input_dims.y;
+    uint64_t sx = input_dims.x, sxy = input_dims.x * input_dims.y;
     core::Vector3i output_dims = (output_to - output_from) / output_stride + 1;
-    uint64_t dx = output_dims.x;
-    uint64_t dxy = output_dims.x * output_dims.y;
-    // TODO: maybe write a macro to shorten the code?
+    uint64_t dx = output_dims.x, dxy = output_dims.x * output_dims.y;
     core::Vector3i dd = block.stride / output_stride;
     for (int z = from.z, // loop variable
          k = (from.z - block.from.z) / block.stride.z, // index into the block's buffer
@@ -376,7 +447,7 @@ void operator()(const IdxBlock& block, const core::Vector3i& output_from,
 }
 };
 
-/** Copy data from an a rectilinear grid to an idx block, assuming the samples in
+/** Copy data from a rectilinear grid to an idx block, assuming the samples in
 both are in row-major order. Here we don't need to specify the input grid's
 from/to/stride because most of the time (a subset of) the original grid is given. */
 template <typename T>
@@ -384,7 +455,7 @@ struct put_grid_to_block {
 void operator()(const Grid& grid, IN_OUT IdxBlock* block)
 {
     using namespace core;
-    core::Vector3i from, to;
+    Vector3i from, to;
     if (!intersect_grid(grid.extent, block->from, block->to, block->stride, from, to)) {
         return;
     }
@@ -392,16 +463,11 @@ void operator()(const Grid& grid, IN_OUT IdxBlock* block)
     T* src = reinterpret_cast<T*>(grid.data.ptr);
     T* dst = reinterpret_cast<T*>(block->data.ptr);
     HANA_ASSERT(src && dst);
-
     // TODO: optimize this loop (parallelize?)
-    core::Vector3i output_dims = (block->to - block->from) / block->stride + 1;
-    uint64_t sx = output_dims.x;
-    uint64_t sxy = output_dims.x * output_dims.y;
-    // TODO: maybe write a macro to shorten the code?
-    core::Vector3i input_dims = grid.extent.to - grid.extent.from + 1;
-    uint64_t dx = input_dims.x;
-    uint64_t dxy = input_dims.x * input_dims.y;
-    core::Vector3i dd = block->stride;
+    Vector3i output_dims = (block->to - block->from) / block->stride + 1;
+    uint64_t sx = output_dims.x, sxy = output_dims.x * output_dims.y;
+    Vector3i input_dims = grid.extent.to - grid.extent.from + 1;
+    uint64_t dx = input_dims.x, dxy = input_dims.x * input_dims.y;
     for (int z = from.z,
         k = (from.z - block->from.z) / block->stride.z; // index into the block's buffer
         z <= to.z; // loop variable and index into the grid's buffer
@@ -423,6 +489,7 @@ void operator()(const Grid& grid, IN_OUT IdxBlock* block)
 }
 };
 
+// TODO: remove global vars like this one
 core::FreelistAllocator<core::Mallocator> freelist;
 
 Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
@@ -434,31 +501,24 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
     return read_idx_grid(idx_file, field, time, hz_level, from, to, stride, grid);
 }
 
-Error read_idx_grid(
-    const IdxFile& idx_file, int field, int time, int hz_level,
-    const core::Vector3i& output_from, const core::Vector3i& output_to,
-    const core::Vector3i& output_stride, IN_OUT Grid* grid)
+Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
+                    const core::Vector3i& output_from, const core::Vector3i& output_to,
+                    const core::Vector3i& output_stride, IN_OUT Grid* grid)
 {
     // check the inputs
-    if (!verify_idx_file(idx_file)) {
+    if (!verify_idx_file(idx_file))
         return Error::InvalidIdxFile;
-    }
-    if (field < 0 || field > idx_file.num_fields) {
+    if (field < 0 || field > idx_file.num_fields)
         return Error::FieldNotFound;
-    }
-    if (time < idx_file.time.begin || time > idx_file.time.end) {
+    if (time < idx_file.time.begin || time > idx_file.time.end)
         return Error::TimeStepNotFound;
-    }
-    if (hz_level < 0 || hz_level > idx_file.get_max_hz_level()) {
+    if (hz_level < 0 || hz_level > idx_file.get_max_hz_level())
         return Error::InvalidHzLevel;
-    }
     HANA_ASSERT(grid);
-    if (!grid->extent.is_valid()) {
+    if (!grid->extent.is_valid())
         return Error::InvalidVolume;
-    }
-    if (!grid->extent.is_inside(idx_file.box)) {
+    if (!grid->extent.is_inside(idx_file.box))
         return Error::VolumeTooBig;
-    }
     HANA_ASSERT(grid->data.ptr);
 
     grid->type = idx_file.fields[field].type;
@@ -480,36 +540,37 @@ Error read_idx_grid(
 
     // determine the most likely size of each block and use a FreeListAllocator
     // with this size to allocate actual data (not metadata) for the blocks.
-    size_t block_size = idx_file.fields[field].type.bytes() * size_t(pow2[idx_file.bits_per_block]);
-    if (freelist.size() != block_size) {
-        freelist.set_sizes(block_size * 4 / 5, block_size);
-    }
+    // some blocks can be smaller due to compression, and/or being near the
+    // boundary
+    size_t samples_per_block = (size_t)pow2[idx_file.bits_per_block];
+    size_t block_size = idx_file.fields[field].type.bytes() * samples_per_block;
+    if (freelist.max_size() != block_size)
+        freelist.set_min_max_size(block_size / 2, block_size);
 
     FILE* file = nullptr;
-    uint64_t last_first_block_index = (uint64_t)-1;
+    uint64_t last_first_block = (uint64_t)-1;
 
     // if the system has 8 cores (say with Hyperthreading), we use 16 threads.
     // 1024 is the upper limit for the number of threads.
-    size_t num_thread_max = static_cast<size_t>(std::thread::hardware_concurrency());
+    size_t num_thread_max = size_t(std::thread::hardware_concurrency());
     num_thread_max = min(num_thread_max * 2, (size_t)1024);
     std::thread threads[1024];
 
+    /* read the blocks */
     for (size_t i = 0; i < idx_blocks.size(); i += num_thread_max) {
         int thread_count = 0;
         for (size_t j = 0; j < num_thread_max && i + j < idx_blocks.size(); ++j) {
             IdxBlock& block = idx_blocks[i + j];
-            Error err = read_idx_block(idx_file, field, time,
-                &last_first_block_index, &file, &block_headers, &block, freelist);
+            Error err = read_idx_block(idx_file, field, time, true, &last_first_block,
+                                       &file, &block_headers, &block, freelist);
+            if (err == Error::InvalidCompression || err == Error::BlockReadFailed)
+                return err; // critical errors
             if (err == Error::BlockNotFound || err == Error::FileNotFound) {
                 error = err;
                 continue; // these are not critical errors (a block may not be saved yet)
             }
-            if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
-                return err; // critical errors
-            }
-            if (block.compression != Compression::None) { // TODO?
+            if (block.compression != Compression::None)// TODO?
                 return Error::CompressionUnsupported;
-            }
             if (block.format == Format::RowMajor) {
                 ++thread_count;
                 threads[j] = std::thread([&, block]() {
@@ -535,8 +596,8 @@ Error read_idx_grid(
                         uint64_t old_bytes = 0;
                         uint64_t old_hz = 1;
                         while (b.bytes < block.bytes && b.bytes < grid->data.bytes) {
-                            // each iteration corresponds to one hz level, starting from 0
-                            // until min_hz_level - 1
+                            // each iteration corresponds to one hz level,
+                            // starting from 0 until min_hz_level - 1
                             forward_functor<put_block_to_grid_hz, int>(b.type.bytes(),
                                 idx_file.bit_string, idx_file.bits_per_block, b,
                                 output_from, output_to, output_stride, grid);
@@ -574,15 +635,13 @@ Error read_idx_grid(
         }
 
         // wait for all the threads to finish before spawning new ones
-        for (int j = 0; j < thread_count; ++j) {
+        for (int j = 0; j < thread_count; ++j)
             threads[j].join();
-        }
         thread_count = 0;
     }
 
-    if (file) {
+    if (file)
         fclose(file);
-    }
 
     return error;
 }
@@ -603,6 +662,106 @@ Error read_idx_grid_inclusive(const IdxFile& idx_file, int field, int time,
         if (err.code != Error::NoError) {
             return err;
         }
+    }
+    return Error::NoError;
+}
+
+//namespace {
+//Error write_idx_headers()
+//{
+//}}
+
+/* Write an IDX grid at one particular HZ level.
+TODO: this function overlaps quite a bit with read_idx_grid. */
+namespace {
+Error write_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
+                     const Grid& grid, bool read)
+{
+    using namespace core;
+
+    /* figure out which blocks touch this grid */
+    Mallocator mallocator;
+    Array<IdxBlock> idx_blocks(&mallocator);
+    Array<IdxBlockHeader> block_headers(&mallocator);
+    block_headers.resize(idx_file.blocks_per_file);
+    get_block_addresses(idx_file, grid.extent, hz_level, &idx_blocks);
+
+    size_t samples_per_block = (size_t)pow2[idx_file.bits_per_block];
+    size_t block_size = idx_file.fields[field].type.bytes() * samples_per_block;
+    if (freelist.max_size() != block_size)
+        freelist.set_min_max_size(block_size / 2, block_size);
+
+    FILE* file = nullptr;
+    uint64_t last_first_block = (uint64_t)-1;
+
+    size_t num_thread_max = size_t(std::thread::hardware_concurrency());
+    num_thread_max = min(num_thread_max * 2, (size_t)1024);
+    std::thread threads[1024];
+
+    /* (read and) write the blocks */
+    // TODO: write block header?
+    for (size_t i = 0; i < idx_blocks.size(); i += num_thread_max) {
+        int thread_count = 0;
+        for (size_t j = 0; j < num_thread_max && i + j < idx_blocks.size(); ++j) {
+            IdxBlock& block = idx_blocks[i + j];
+            Error err = Error::NoError;
+            if (read) {
+                // read the headers
+                uint64_t first_block = 0;
+                int block_in_file = 0;
+                get_first_block_in_file(block.hz_address, idx_file.bits_per_block,
+                                        idx_file.blocks_per_file, &first_block,
+                                        &block_in_file);
+                char bin_path[512];
+                get_file_name_from_hz(idx_file, time, first_block, STR_REF(bin_path));
+                err = read_block_headers(&file, bin_path, field,
+                                         idx_file.blocks_per_file, &block_headers);
+                if (err.code != Error::NoError) {
+                    err = read_idx_block(idx_file, field, time, &last_first_block,
+                                         false, &file, &block_headers, &block, freelist);
+                }
+            }
+            if (err == Error::HeaderNotFound) { // write the headers
+                // tODO
+            }
+
+            if (err == Error::InvalidCompression || err == Error::BlockReadFailed)
+                return err; // critical errors
+            if (err == Error::BlockNotFound || err == Error::FileNotFound) {
+                // TODO: handle compression
+                block.data = freelist.allocate(block_size);
+            }
+            if (block.compression != Compression::None)
+                return Error::CompressionUnsupported;
+            if (block.format != Format::RowMajor)
+                return Error::InvalidFormat;
+            // copy the data from the grid over
+            ++thread_count;
+            /*threads[j] = std::thread([&, block]() {
+                forward_functor<put_block_to_grid, int>(block.type.bytes(),
+                    block, output_from, output_to, output_stride, grid);
+                mutex.lock();
+                freelist.deallocate(block.data);
+                mutex.unlock();
+            });*/
+        }
+    }
+
+    // write to the blocks
+    // write the blocks to disk
+    return Error::NoError;
+}}
+
+Error write_idx_grid(const IdxFile& idx_file, int field, int time,
+                     const Grid& grid, bool read)
+{
+    HANA_ASSERT(grid.data.ptr != nullptr);
+    int min_hz = idx_file.get_min_hz_level();
+    int max_hz = idx_file.get_max_hz_level();
+    for (int l = min_hz; l <= max_hz; ++l) {
+        Error err = write_idx_grid(idx_file, field, time, l, grid, read);
+        if (err.code != Error::NoError)
+            return err;
     }
     return Error::NoError;
 }

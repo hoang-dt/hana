@@ -33,7 +33,7 @@ enum Format {
 struct IdxField {
     IdxType type = {};
     char name[128] = "";
-    Format format = Format::RowMajor; // TODO: what is the default?
+    Format format = Format::RowMajor;
     Compression compression = Compression::None;
 
     void set_name(const char* s);
@@ -52,7 +52,7 @@ A file name template has the form ./%02x/%01x/%01x.bin */
 struct FileNameTemplate {
     core::Path head; /** This part is fixed (e.g. .) */
     int num_hex_bits[64] = {}; /** e.g. [2, 1, 1] */
-    char ext[8] = ""; /** e.g. .bin */
+    char ext[8] = ".bin"; /** e.g. .bin */
 };
 
 namespace detail {
@@ -83,7 +83,8 @@ struct IdxFileBase {
 
 /** An IDX file */
 struct IdxFile : public detail::IdxFileBase {
-    /** Refers to the "bits" buffer above, but without the V and only until the NULL character. */
+    /** Refers to the "bits" buffer above, but without the V and only until the
+    NULL character. */
     core::StringRef bit_string;
 
     IdxFile() = default;

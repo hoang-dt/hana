@@ -171,13 +171,12 @@ class FreelistAllocator : public Allocator {
         }
     }
 
-    size_t size() { return max_size_; }
+    size_t max_size() { return max_size_; }
 
-    void set_sizes(size_t min_size, size_t max_size)
+    void set_min_max_size(size_t min_size, size_t max_size)
     {
-        if (max_size != max_size_) {
+        if (max_size != max_size_)
             deallocate_all();
-        }
         min_size_ = min_size;
         max_size_ = max_size;
     }

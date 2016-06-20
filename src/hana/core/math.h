@@ -20,7 +20,8 @@ const T* power(T base)
 static auto pow2 = power<int, 31>(2);
 static auto pow10 = power<int, 9>(10);
 
-/** Find the first power of, say, 2 that is greater than or equal to the given number. */
+/** Find the first power of, say, 2 that is greater than or equal to the given
+number. */
 inline int pow_greater_equal(int base, int num)
 {
     HANA_ASSERT(base > 1);
@@ -37,7 +38,7 @@ If the number is not a power of the base, round the log down. */
 template <typename T>
 inline int log_int(T base, T num)
 {
-    //static_assert(std::is_integral<T>::value, "Integer required.");
+    static_assert(std::is_integral<T>::value, "Integer required.");
 
     HANA_ASSERT(base > 1);
     HANA_ASSERT(num > 0);
