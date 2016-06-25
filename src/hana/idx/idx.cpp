@@ -23,7 +23,7 @@ there is no time step template (4 = 0100, 5 = 0101, 2 = 0010, and c = 1100).
 The time step template, if present, will be added to the beginning of the path. */
 namespace {
 void get_file_name_from_hz(const IdxFile& idx_file, int time, uint64_t hz_address,
-                   OUT core::StringRef file_name)
+                           OUT core::StringRef file_name)
 {
     // TODO: we can optimize a little more by "pre-building" the static parts
     // of the file name and just fill in the templated parts
