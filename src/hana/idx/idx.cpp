@@ -717,8 +717,8 @@ Error write_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                 err = read_block_headers(&file, bin_path, field,
                                          idx_file.blocks_per_file, &block_headers);
                 if (err.code != Error::NoError) {
-                    err = read_idx_block(idx_file, field, time, &last_first_block,
-                                         false, &file, &block_headers, &block, freelist);
+                    err = read_idx_block(idx_file, field, time, false, &last_first_block,
+                                          &file, &block_headers, &block, freelist);
                 }
             }
             if (err == Error::HeaderNotFound) { // write the headers
