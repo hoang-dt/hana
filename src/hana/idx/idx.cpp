@@ -347,9 +347,9 @@ void operator()(const core::StringRef bit_string, int bits_per_block,
         if (top_tuple.num_elems == 1) {
             HANA_ASSERT(top_tuple.from == top_tuple.to);
             core::Vector3i coord = (top_tuple.from - output_from) / output_stride;
-            uint64_t xyz = coord.x + coord.y * dx + coord.z * dxy;
-            uint64_t ijk = top_tuple.hz_address - block.hz_address;
-            if (xyz < dxyz) {
+            if (grid->extent.from <= coord && coord <= grid->extent.to) {
+                uint64_t xyz = coord.x + coord.y * dx + coord.z * dxy;
+                uint64_t ijk = top_tuple.hz_address - block.hz_address;
                 dst[xyz] = src[ijk];
             }
             continue;
@@ -595,7 +595,7 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                         b.stride = get_intra_block_strides(idx_file.bit_string, b.hz_level);
                         uint64_t old_bytes = 0;
                         uint64_t old_hz = 1;
-                        while (b.bytes < block.bytes && b.bytes < grid->data.bytes) {
+                        while (b.bytes < block.bytes && b.hz_level <= hz_level) {
                             // each iteration corresponds to one hz level,
                             // starting from 0 until min_hz_level - 1
                             forward_functor<put_block_to_grid_hz, int>(b.type.bytes(),
@@ -652,7 +652,8 @@ Error read_idx_grid_inclusive(const IdxFile& idx_file, int field, int time,
     grid->type = idx_file.fields[field].type;
     core::Vector3i from, to, stride;
     idx_file.get_grid_inclusive(grid->extent, hz_level, from, to, stride);
-    Error err = read_idx_grid(idx_file, field, time, 0, from, to, stride, grid);
+    Error err = read_idx_grid(idx_file, field, time, idx_file.get_min_hz_level()-1,
+                              from, to, stride, grid);
     if (err.code != Error::NoError) {
         return err;
     }
