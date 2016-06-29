@@ -11,6 +11,7 @@
 #include "error.h"
 #include <algorithm>
 #include <array>
+#include <iostream>
 #include <thread>
 #include <mutex>
 
@@ -342,12 +343,11 @@ void operator()(const core::StringRef bit_string, int bits_per_block,
         // pop from the top
         Tuple top_tuple = stack[top--];
         HANA_ASSERT(top_tuple.hz_address == xyz_to_hz(bit_string, top_tuple.from));
-
         // if this is a single element, put it into the grid and continue
         if (top_tuple.num_elems == 1) {
             HANA_ASSERT(top_tuple.from == top_tuple.to);
-            core::Vector3i coord = (top_tuple.from - output_from) / output_stride;
-            if (grid->extent.from <= coord && coord <= grid->extent.to) {
+            if (grid->extent.from <= top_tuple.from && top_tuple.from <= grid->extent.to) {
+                core::Vector3i coord = (top_tuple.from - output_from) / output_stride;
                 uint64_t xyz = coord.x + coord.y * dx + coord.z * dxy;
                 uint64_t ijk = top_tuple.hz_address - block.hz_address;
                 dst[xyz] = src[ijk];

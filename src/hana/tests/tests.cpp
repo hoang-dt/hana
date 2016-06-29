@@ -399,6 +399,49 @@ void test_read_idx_grid_8()
     }
 
     string hash = md5(grid.data.ptr, (long)grid.data.bytes);
+
+    HANA_ASSERT(hash == "423dc67376d85671419ee10e2a35e54d");
+    free(grid.data.ptr);
+}
+
+void test_read_idx_grid_9()
+{
+    cout << "Test 9" << endl;
+
+    IdxFile idx_file;
+
+    idx::Error error = read_idx_file("../../../../data/blob/blob.idx", &idx_file);
+    if (error.code != core::Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    int hz_level = idx_file.get_max_hz_level();
+    //int field = idx_file.get_field_index("heat");
+    int field = 0;
+    int time = idx_file.get_min_time_step();
+
+    Grid grid;
+    //grid.extent = idx_file.get_logical_extent();
+    grid.extent.from = Vector3i(25, 0, 0);
+    grid.extent.to = Vector3i(49, 25, 25);
+    grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
+    grid.data.ptr = (char*)malloc(grid.data.bytes);
+
+    Vector3i from, to, stride;
+    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    Vector3i dim = (to - from) / stride + 1;
+    cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
+
+    error = read_idx_grid_inclusive(idx_file, field, time, hz_level, &grid);
+    idx::deallocate_memory();
+
+    if (error.code != core::Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    string hash = md5(grid.data.ptr, (long)grid.data.bytes);
     cout << "MD5 = " << hash << "\n";
 
     //TODO: remove the binary save, instead compute hash
@@ -413,6 +456,7 @@ void test_read_idx_grid_8()
     free(grid.data.ptr);
 }
 
+
 int main()
 {
     using namespace hana::core;
@@ -423,8 +467,9 @@ int main()
     test_read_idx_grid_4();
     test_read_idx_grid_5();
     test_read_idx_grid_6();
-    //test_read_idx_grid_7(); // TODO: fix this test
+    //test_read_idx_grid_7(); // TODO: fix this test (currently reading resolutions less than the min hz level can only be done in "inclusive" mode)
     test_read_idx_grid_8();
+    test_read_idx_grid_9();
     //performance_test();
     return 0;
 }
