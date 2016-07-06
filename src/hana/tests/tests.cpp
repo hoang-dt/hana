@@ -442,6 +442,53 @@ void test_read_idx_grid_9()
     }
 
     string hash = md5(grid.data.ptr, (long)grid.data.bytes);
+    HANA_ASSERT(hash == "8e74b8324940391c977009af96580b16");
+    cout << "MD5 = " << hash << "\n";
+
+    //TODO: remove the binary save, instead compute hash
+
+
+    free(grid.data.ptr);
+}
+
+void test_read_idx_grid_10()
+{
+    cout << "Test 10" << endl;
+
+    IdxFile idx_file;
+
+    idx::Error error = read_idx_file("../../../../data/blob200.idx", &idx_file);
+    if (error.code != core::Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    int hz_level = idx_file.get_max_hz_level();
+    //int field = idx_file.get_field_index("heat");
+    int field = 0;
+    int time = idx_file.get_min_time_step();
+
+    Grid grid;
+    //grid.extent = idx_file.get_logical_extent();
+    grid.extent.from = Vector3i(100, 100, 100);
+    grid.extent.to = Vector3i(199, 199, 199);
+    grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
+    grid.data.ptr = (char*)malloc(grid.data.bytes);
+
+    Vector3i from, to, stride;
+    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    Vector3i dim = (to - from) / stride + 1;
+    cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
+
+    error = read_idx_grid_inclusive(idx_file, field, time, hz_level, &grid);
+    idx::deallocate_memory();
+
+    if (error.code != core::Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    string hash = md5(grid.data.ptr, (long)grid.data.bytes);
     cout << "MD5 = " << hash << "\n";
 
     //TODO: remove the binary save, instead compute hash
@@ -470,6 +517,7 @@ int main()
     //test_read_idx_grid_7(); // TODO: fix this test (currently reading resolutions less than the min hz level can only be done in "inclusive" mode)
     test_read_idx_grid_8();
     test_read_idx_grid_9();
+    //test_read_idx_grid_10();
     //performance_test();
     return 0;
 }
