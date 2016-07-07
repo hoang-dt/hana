@@ -445,9 +445,6 @@ void test_read_idx_grid_9()
     HANA_ASSERT(hash == "8e74b8324940391c977009af96580b16");
     cout << "MD5 = " << hash << "\n";
 
-    //TODO: remove the binary save, instead compute hash
-
-
     free(grid.data.ptr);
 }
 
@@ -464,12 +461,10 @@ void test_read_idx_grid_10()
     }
 
     int hz_level = idx_file.get_max_hz_level();
-    //int field = idx_file.get_field_index("heat");
     int field = 0;
     int time = idx_file.get_min_time_step();
 
     Grid grid;
-    //grid.extent = idx_file.get_logical_extent();
     grid.extent.from = Vector3i(100, 100, 100);
     grid.extent.to = Vector3i(199, 199, 199);
     grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
@@ -491,15 +486,6 @@ void test_read_idx_grid_10()
     string hash = md5(grid.data.ptr, (long)grid.data.bytes);
     cout << "MD5 = " << hash << "\n";
 
-    //TODO: remove the binary save, instead compute hash
-    printf("bytes %d\n", grid.data.bytes);
-    std::ofstream out;
-    char name[128];
-    sprintf(name, "data.raw");
-    out.open(name, std::ofstream::binary);
-    out.write(grid.data.ptr, grid.data.bytes);
-    out.close();
-
     free(grid.data.ptr);
 }
 
@@ -517,7 +503,7 @@ int main()
     //test_read_idx_grid_7(); // TODO: fix this test (currently reading resolutions less than the min hz level can only be done in "inclusive" mode)
     test_read_idx_grid_8();
     test_read_idx_grid_9();
-    //test_read_idx_grid_10();
+    test_read_idx_grid_10();
     //performance_test();
     return 0;
 }

@@ -565,14 +565,18 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
             IdxBlock& block = idx_blocks[i + j];
             Error err = read_idx_block(idx_file, field, time, true, &last_first_block,
                                        &file, &block_headers, &block, freelist);
-            if (err == Error::InvalidCompression || err == Error::BlockReadFailed)
-                return err; // critical errors
+            if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
+                error = err;
+                goto WAIT;
+            }
             if (err == Error::BlockNotFound || err == Error::FileNotFound) {
                 error = err;
                 continue; // these are not critical errors (a block may not be saved yet)
             }
-            if (block.compression != Compression::None)// TODO?
-                return Error::CompressionUnsupported;
+            if (block.compression != Compression::None) {// TODO?
+                error = Error::CompressionUnsupported;
+                goto WAIT;
+            }
             if (block.format == Format::RowMajor) {
                 ++thread_count;
                 threads[j] = std::thread([&, block]() {
@@ -633,10 +637,12 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                 }
             } else {
                 error = Error::InvalidFormat;
+                goto WAIT;
             }
         }
 
         // wait for all the threads to finish before spawning new ones
+WAIT:
         for (int j = 0; j < thread_count; ++j)
             threads[j].join();
         thread_count = 0;
