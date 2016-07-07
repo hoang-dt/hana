@@ -324,6 +324,10 @@ void operator()(const core::StringRef bit_string, int bits_per_block,
 {
     HANA_ASSERT(block.hz_level <= bit_string.size);
 
+    if (!(grid->extent.from <= block.to) || !(block.from <= grid->extent.to)) {
+        return;
+    }
+
     const int stack_size = 65;
     Tuple stack[stack_size];
     int top = 0;
@@ -346,12 +350,10 @@ void operator()(const core::StringRef bit_string, int bits_per_block,
         // if this is a single element, put it into the grid and continue
         if (top_tuple.num_elems == 1) {
             HANA_ASSERT(top_tuple.from == top_tuple.to);
-            if (grid->extent.from <= top_tuple.from && top_tuple.from <= grid->extent.to) {
-                core::Vector3i coord = (top_tuple.from - output_from) / output_stride;
-                uint64_t xyz = coord.x + coord.y * dx + coord.z * dxy;
-                uint64_t ijk = top_tuple.hz_address - block.hz_address;
-                dst[xyz] = src[ijk];
-            }
+            core::Vector3i coord = (top_tuple.from - output_from) / output_stride;
+            uint64_t xyz = coord.x + coord.y * dx + coord.z * dxy;
+            uint64_t ijk = top_tuple.hz_address - block.hz_address;
+            dst[xyz] = src[ijk];
             continue;
         }
 

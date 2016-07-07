@@ -115,6 +115,12 @@ bool operator<=(const Vector3<T>& a, const Vector3<T>& b)
 }
 
 template <typename T>
+bool operator>(const Vector3<T>& a, const Vector3<T>& b)
+{
+    return a.x > b.x && a.y > b.y && a.z > b.z;
+}
+
+template <typename T>
 bool operator==(const Vector3<T>& a, const Vector3<T>& b)
 {
     return a.x == b.x && a.y == b.y && a.z == b.z;
