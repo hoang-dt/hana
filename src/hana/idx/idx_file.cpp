@@ -7,12 +7,10 @@
 #include "idx_file.h"
 #include "types.h"
 #include "utils.h"
-#include <catch.hpp>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <utility>
-#include "catch.hpp"
 
 namespace hana { namespace idx {
 

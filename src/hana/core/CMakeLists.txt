@@ -32,11 +32,3 @@ install(TARGETS core
 install(EXPORT core NAMESPACE hana:: DESTINATION lib/hana)
 
 export(EXPORT core NAMESPACE hana:: FILE ${CMAKE_BINARY_DIR}/core.cmake)
-
-add_dependencies(core Catch)
-target_include_directories(core PRIVATE ${CATCH_INCLUDE_DIR})
-
-########################################################
-add_executable(core_test tests.cpp)
-target_link_libraries(core_test core)
-target_include_directories(core_test PRIVATE ${CATCH_INCLUDE_DIR})
