@@ -448,7 +448,7 @@ template <typename T>
 struct put_grid_to_block {
 void operator()(const Grid& grid, IN_OUT IdxBlock* block)
 {
-    using namespace core;
+  //    using namespace core;
     Vector3i from, to;
     if (!intersect_grid(grid.extent, block->from, block->to, block->stride, from, to)) {
         return;
