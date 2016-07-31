@@ -1,1 +1,2 @@
-add_subdirectory(hana)
+add_subdirectory(idx)
+add_subdirectory(tests)
