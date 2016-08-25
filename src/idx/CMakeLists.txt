@@ -29,9 +29,8 @@ endif()
 target_compile_definitions(hana PUBLIC $<$<CONFIG:DEBUG>:HANA_ASSERT_ON>)
 
 install(TARGETS hana
-    EXPORT hana
+    EXPORT hana-config
     ARCHIVE DESTINATION lib/hana
     PUBLIC_HEADER DESTINATION include/hana)
-install(EXPORT hana DESTINATION lib/hana)
+install(EXPORT hana-config DESTINATION lib/hana)
 
-export(EXPORT hana FILE ${CMAKE_BINARY_DIR}/idx.cmake)
