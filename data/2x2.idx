@@ -1,0 +1,18 @@
+(version)
+6
+(logic_to_physic)
+1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1
+(box)
+0 1 0 1 0 0 0 0 0 0
+(fields)
+data uint8 format(0) default_value(0) 
+(bits)
+V01
+(bitsperblock)
+2
+(blocksperfile)
+1
+(interleave block)
+0
+(filename_template)
+./2x2/%01x.bin
