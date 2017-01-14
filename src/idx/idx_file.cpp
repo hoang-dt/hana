@@ -28,6 +28,7 @@ namespace {
     const char default_compression_[] = "default_compression";
     const char compressed_[] = "compressed";
     const char default_layout_[] = "default_layout";
+    const char default_value_[] = "default_value";
     const char filter_[] = "filter";
     const char format_[] = "format";
     const char min_[] = "min";
@@ -267,8 +268,10 @@ Error read_idx_file(std::istream& input, IdxFile* idx_file)
                         field.compression = Compression::Zip;
                     }
                 }
+                // TODO: support default value
                 else if (start_with(token, STR_REF(default_layout_)) ||
-                         start_with(token, STR_REF(format_))) { // format
+                         start_with(token, STR_REF(format_)) ||
+                         start_with(token, STR_REF(default_value_))) { // format
                     auto str_pair = split_string(token, '(', ')');
                     int fmt = 0;
                     to_int(str_pair.second, fmt);
