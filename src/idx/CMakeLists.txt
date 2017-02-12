@@ -20,6 +20,7 @@ target_include_directories(hana PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:include>)
 
+# compiler specifics
 if(MSVC)
     target_compile_definitions(hana PUBLIC _CRT_SECURE_NO_WARNINGS)
     target_compile_options(hana PUBLIC /W4)
@@ -28,9 +29,17 @@ elseif(UNIX OR APPLE OR MINGW)
 endif()
 target_compile_definitions(hana PUBLIC $<$<CONFIG:DEBUG>:HANA_ASSERT_ON>)
 
+# zlib compression
+if(ZLIB_ENABLED)
+    add_dependencies(hana BLOSC)
+    ExternalProject_Get_Property(BLOSC INSTALL_DIR)
+    target_include_directories(hana PRIVATE ${BLOSC_INCLUDE_DIR})
+    target_link_libraries(hana ${INSTALL_DIR}/lib/libblosc.lib)
+endif()
+
+# install
 install(TARGETS hana
     EXPORT hana-config
     ARCHIVE DESTINATION lib/hana
     PUBLIC_HEADER DESTINATION include/hana)
 install(EXPORT hana-config DESTINATION lib/hana)
-
