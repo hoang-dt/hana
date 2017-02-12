@@ -31,6 +31,7 @@ target_compile_definitions(hana PUBLIC $<$<CONFIG:DEBUG>:HANA_ASSERT_ON>)
 
 # zlib compression
 if(ZLIB_ENABLED)
+    target_compile_definitions(hana PRIVATE ZLIB_ENABLED=1)
     add_dependencies(hana blosc_static)
     target_link_libraries(hana blosc_static)
 endif()

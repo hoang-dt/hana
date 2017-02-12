@@ -14,6 +14,9 @@
 #include <iostream>
 #include <thread>
 #include <mutex>
+#ifdef ZLIB_ENABLED
+#include <blosc.h>
+#endif
 
 namespace hana {
 
@@ -563,10 +566,19 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                 error = err;
                 continue; // these are not critical errors (a block may not be saved yet)
             }
-            if (block.compression != Compression::None) {// TODO?
+#ifdef ZLIB_ENABLED
+            if (block.compression == Compression::Zip) {
+                MemBlockChar dst = freelist.allocate(block_size);
+                blosc_decompress_ctx2("zlib", block.data.ptr, dst.ptr, dst.bytes, 1);
+                std::swap(block.data, dst);
+                freelist.deallocate(dst);
+            }
+#elif
+            if (block.compression != Compression::None) {
                 error = Error::CompressionUnsupported;
                 goto WAIT;
             }
+#endif
             if (block.format == Format::RowMajor) {
                 ++thread_count;
                 threads[j] = std::thread([&, block]() {
