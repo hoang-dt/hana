@@ -1,0 +1,13 @@
+option(ZLIB_ENABLED "enable zlib compression" FALSE)
+if(ZLIB_ENABLED)
+    execute_process(COMMAND git submodule add --force https://github.com/hoangthaiduong/c-blosc.git
+                    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/external/)
+    set(PREFER_EXTERNAL_ZLIB CACHE BOOL FALSE FORCE)
+    set(DEACTIVATE_LZ4 ON CACHE BOOL "" FORCE)
+    set(DEACTIVATE_SNAPPY ON CACHE BOOL "" FORCE)
+    set(DEACTIVATE_ZSTD ON CACHE BOOL "" FORCE)
+    set(BUILD_BENCHMARKS CACHE BOOL OFF FORCE)
+    set(BUILD_SHARED CACHE BOOL OFF FORCE)
+    set(BUILD_TESTS CACHE BOOL OFF FORCE)
+    add_subdirectory(c-blosc)
+endif()

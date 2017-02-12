@@ -15,10 +15,5 @@ if (DOXYGEN_FOUND)
 		COMMENT "Generating API documentation w/ Doxygen" VERBATIM)
 endif()
 
-# zlib compression
-option(ZLIB_ENABLED "enable zlib compression" FALSE)
-if(ZLIB_ENABLED)
-    find_package(Blosc REQUIRED)
-endif()
-
+add_subdirectory(external)
 add_subdirectory(src)

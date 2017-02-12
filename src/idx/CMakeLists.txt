@@ -31,10 +31,8 @@ target_compile_definitions(hana PUBLIC $<$<CONFIG:DEBUG>:HANA_ASSERT_ON>)
 
 # zlib compression
 if(ZLIB_ENABLED)
-    add_dependencies(hana BLOSC)
-    ExternalProject_Get_Property(BLOSC INSTALL_DIR)
-    target_include_directories(hana PRIVATE ${BLOSC_INCLUDE_DIR})
-    target_link_libraries(hana ${INSTALL_DIR}/lib/libblosc.lib)
+    add_dependencies(hana blosc_static)
+    target_link_libraries(hana blosc_static)
 endif()
 
 # install
@@ -42,4 +40,5 @@ install(TARGETS hana
     EXPORT hana-config
     ARCHIVE DESTINATION lib/hana
     PUBLIC_HEADER DESTINATION include/hana)
-install(EXPORT hana-config DESTINATION lib/hana)
+
+#install(EXPORT hana-config DESTINATION lib/hana) # TODO: enable this
