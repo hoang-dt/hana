@@ -15,7 +15,8 @@
 #include <thread>
 #include <mutex>
 #ifdef ZLIB_ENABLED
-#include <blosc.h>
+//#include <blosc.h>
+#include <zlib.h>
 #endif
 
 namespace hana {
@@ -486,8 +487,6 @@ void operator()(const Grid& grid, IN_OUT IdxBlock* block)
 }
 };
 
-// TODO: remove global vars like this one
-FreelistAllocator<Mallocator> freelist;
 
 Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                     IN_OUT Grid* grid)
@@ -538,8 +537,6 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
     // boundary
     size_t samples_per_block = (size_t)pow2[idx_file.bits_per_block];
     size_t block_size = idx_file.fields[field].type.bytes() * samples_per_block;
-    if (freelist.max_size() != block_size)
-        freelist.set_min_max_size(block_size / 2, block_size);
 
     FILE* file = nullptr;
     Error error;
@@ -557,7 +554,7 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
         for (size_t j = 0; j < num_thread_max && i + j < idx_blocks.size(); ++j) {
             IdxBlock& block = idx_blocks[i + j];
             Error err = read_idx_block(idx_file, field, time, true, &last_first_block,
-                                       &file, &block_headers, &block, freelist);
+                                       &file, &block_headers, &block, mallocator);
             if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
                 error = err;
                 goto WAIT;
@@ -568,10 +565,19 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
             }
 #ifdef ZLIB_ENABLED
             if (block.compression == Compression::Zip) {
-                MemBlockChar dst = freelist.allocate(block_size);
-                blosc_decompress_ctx2("zlib", block.data.ptr, dst.ptr, dst.bytes, 1);
+
+                auto dd = (char*)malloc(block_size);
+                MemBlockChar dst(dd, block_size);
+                uLong dest_len = dst.bytes;
+                Bytef* dest = (Bytef*)dst.ptr;
+                Bytef* src = (Byte*)block.data.ptr;
+                uncompress(dest, &dest_len, src, block.data.bytes);
+                //blosc_decompress_ctx2("zlib", block.data.ptr, dst.ptr, dst.bytes, 1);
                 std::swap(block.data, dst);
-                freelist.deallocate(dst);
+                block.data.bytes = dest_len;
+                //mutex.lock();
+                mallocator.deallocate(dst);
+                //mutex.unlock();
             }
 #elif
             if (block.compression != Compression::None) {
@@ -585,7 +591,7 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                     forward_functor<put_block_to_grid, int>(block.type.bytes(),
                         block, output_from, output_to, output_stride, grid);
                     mutex.lock();
-                    freelist.deallocate(block.data);
+                    mallocator.deallocate(block.data);
                     mutex.unlock();
                 });
             } else if (block.format == Format::Hz) {
@@ -622,7 +628,7 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                         }
 
                         mutex.lock();
-                        freelist.deallocate(block.data);
+                        mallocator.deallocate(block.data);
                         mutex.unlock();
                     });
                 }
@@ -633,7 +639,7 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                             idx_file.bit_string, idx_file.bits_per_block, block,
                             output_from, output_to, output_stride, grid);
                         mutex.lock();
-                        freelist.deallocate(block.data);
+                        mallocator.deallocate(block.data);
                         mutex.unlock();
                     });
                 }
@@ -696,8 +702,6 @@ Error write_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
 
     size_t samples_per_block = (size_t)pow2[idx_file.bits_per_block];
     size_t block_size = idx_file.fields[field].type.bytes() * samples_per_block;
-    if (freelist.max_size() != block_size)
-        freelist.set_min_max_size(block_size / 2, block_size);
 
     FILE* file = nullptr;
     uint64_t last_first_block = (uint64_t)-1;
@@ -726,7 +730,7 @@ Error write_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                                          idx_file.blocks_per_file, &block_headers);
                 if (err.code != Error::NoError) {
                     err = read_idx_block(idx_file, field, time, false, &last_first_block,
-                                          &file, &block_headers, &block, freelist);
+                                          &file, &block_headers, &block, mallocator);
                 }
             }
             if (err == Error::HeaderNotFound) { // write the headers
@@ -737,7 +741,7 @@ Error write_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                 return err; // critical errors
             if (err == Error::BlockNotFound || err == Error::FileNotFound) {
                 // TODO: handle compression
-                block.data = freelist.allocate(block_size);
+                block.data = mallocator.allocate(block_size);
             }
             if (block.compression != Compression::None)
                 return Error::CompressionUnsupported;
@@ -776,7 +780,7 @@ Error write_idx_grid(const IdxFile& idx_file, int field, int time,
 
 void deallocate_memory()
 {
-    freelist.deallocate_all();
+    //mallocator.deallocate_all();
 }
 
 }

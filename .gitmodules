@@ -1,0 +1,6 @@
+[submodule "external/c-blosc"]
+	path = external/c-blosc
+	url = https://github.com/hoangthaiduong/c-blosc.git
+[submodule "external/--force"]
+	path = external/--force
+	url = https://github.com/hoangthaiduong/c-blosc.git

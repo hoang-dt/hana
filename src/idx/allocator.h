@@ -155,6 +155,7 @@ class FreelistAllocator : public Allocator {
         else {
             return parent_.deallocate(b);
         }
+        return true;
     }
 
     bool owns(MemBlockVoid b) const override

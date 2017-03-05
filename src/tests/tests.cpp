@@ -20,7 +20,7 @@ void test_read_idx_grid_1()
 
     IdxFile idx_file;
 
-    Error error = read_idx_file("../../../../data/flame_small_heat.idx", &idx_file);
+    Error error = read_idx_file("../../../data/flame_small_heat.idx", &idx_file);
     if (error.code != Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -63,7 +63,7 @@ void test_read_idx_grid_2()
 
     IdxFile idx_file;
 
-    Error error = read_idx_file("../../../../data/flame_small_heat.idx", &idx_file);
+    Error error = read_idx_file("../../../data/flame_small_heat.idx", &idx_file);
     if (error.code != Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -108,7 +108,7 @@ void test_read_idx_grid_3()
 
     IdxFile idx_file;
 
-    Error error = read_idx_file("../../../../data/flame_small_heat.idx", &idx_file);
+    Error error = read_idx_file("../../../data/flame_small_heat.idx", &idx_file);
     if (error.code != Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -152,7 +152,7 @@ void test_read_idx_grid_4()
 
     IdxFile idx_file;
 
-    Error error = read_idx_file("../../../../data/flame_small_o2.idx", &idx_file);
+    Error error = read_idx_file("../../../data/flame_small_o2.idx", &idx_file);
     if (error.code != Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -195,7 +195,7 @@ void test_read_idx_grid_5()
 
     IdxFile idx_file;
 
-    Error error = read_idx_file("../../../../data/flame_small_o2.idx", &idx_file);
+    Error error = read_idx_file("../../../data/flame_small_o2.idx", &idx_file);
     if (error.code != Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -238,7 +238,7 @@ void test_read_idx_grid_6()
 
     IdxFile idx_file;
 
-    Error error = read_idx_file("../../../../data/flame_small_o2.idx", &idx_file);
+    Error error = read_idx_file("../../../data/flame_small_o2.idx", &idx_file);
     if (error.code != Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -281,7 +281,7 @@ void test_read_idx_grid_7()
 
     IdxFile idx_file;
 
-    Error error = read_idx_file("../../../../data/flame_small_heat.idx", &idx_file);
+    Error error = read_idx_file("../../../data/flame_small_heat.idx", &idx_file);
     if (error.code != Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -324,7 +324,7 @@ void performance_test()
 
     IdxFile idx_file;
 
-    Error error = read_idx_file("../../../../data/magnetic_reconnection.idx", &idx_file);
+    Error error = read_idx_file("../../../data/magnetic_reconnection.idx", &idx_file);
     if (error.code != Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -365,7 +365,7 @@ void test_read_idx_grid_8()
 
     IdxFile idx_file;
 
-    Error error = read_idx_file("../../../../data/blob/blob.idx", &idx_file);
+    Error error = read_idx_file("../../../data/blob/blob.idx", &idx_file);
     if (error.code != Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -408,7 +408,7 @@ void test_read_idx_grid_9()
 
     IdxFile idx_file;
 
-    Error error = read_idx_file("../../../../data/blob/blob.idx", &idx_file);
+    Error error = read_idx_file("../../../data/blob/blob.idx", &idx_file);
     if (error.code != Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -452,7 +452,7 @@ void test_read_idx_grid_10()
 
     IdxFile idx_file;
 
-    Error error = read_idx_file("../../../../data/blob200.idx", &idx_file);
+    Error error = read_idx_file("../../../data/blob200.idx", &idx_file);
     if (error.code != Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -528,21 +528,65 @@ void test_read_idx_grid_11()
     free(grid.data.ptr);
 }
 
+// Test decompression
+void test_read_idx_grid_12()
+{
+    cout << "Test 12" << endl;
+
+    IdxFile idx_file;
+
+    Error error = read_idx_file("../../../data/bonsai_zlib.idx", &idx_file);
+    if (error.code != Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    int hz_level = idx_file.get_max_hz_level();
+    int field = 0;
+    int time = 0;
+
+    Grid grid;
+    grid.extent = idx_file.get_logical_extent();
+    grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
+    grid.data.ptr = (char*)malloc(grid.data.bytes);
+
+    Vector3i from, to, stride;
+    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    Vector3i dim = (to - from) / stride + 1;
+    cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
+
+    error = read_idx_grid_inclusive(idx_file, field, time, hz_level, &grid);
+    deallocate_memory();
+
+    if (error.code != Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    string hash = md5(grid.data.ptr, (long)grid.data.bytes);
+    ofstream output("out.raw", ios::binary);
+    output.write(grid.data.ptr, grid.data.bytes);
+    cout << "MD5 = " << hash << "\n";
+
+    free(grid.data.ptr);
+}
+
 int main()
 {
     using namespace hana;
 
-    test_read_idx_grid_1();
-    test_read_idx_grid_2();
-    test_read_idx_grid_3();
-    test_read_idx_grid_4();
-    test_read_idx_grid_5();
-    test_read_idx_grid_6();
-    //test_read_idx_grid_7(); // TODO: fix this test (currently reading resolutions less than the min hz level can only be done in "inclusive" mode)
-    test_read_idx_grid_8();
-    test_read_idx_grid_9();
-    test_read_idx_grid_10();
-    test_read_idx_grid_11();
+    //test_read_idx_grid_1();
+    //test_read_idx_grid_2();
+    //test_read_idx_grid_3();
+    //test_read_idx_grid_4();
+    //test_read_idx_grid_5();
+    //test_read_idx_grid_6();
+    ////test_read_idx_grid_7(); // TODO: fix this test (currently reading resolutions less than the min hz level can only be done in "inclusive" mode)
+    //test_read_idx_grid_8();
+    //test_read_idx_grid_9();
+    //test_read_idx_grid_10();
+    ////test_read_idx_grid_11();
+    test_read_idx_grid_12();
     //performance_test();
     return 0;
 }
