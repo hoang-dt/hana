@@ -573,7 +573,7 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                 std::swap(block.data, dst);
                 freelist.deallocate(dst);
             }
-#elif
+#else
             if (block.compression != Compression::None) {
                 error = Error::CompressionUnsupported;
                 goto WAIT;
