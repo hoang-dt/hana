@@ -42,4 +42,5 @@ install(TARGETS hana
     ARCHIVE DESTINATION lib/hana
     PUBLIC_HEADER DESTINATION include/hana)
 
-#install(EXPORT hana-config DESTINATION lib/hana) # TODO: enable this
+install(EXPORT hana-config DESTINATION lib/hana)
+
