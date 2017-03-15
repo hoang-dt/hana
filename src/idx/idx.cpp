@@ -223,7 +223,12 @@ Error read_idx_block(const IdxFile& idx_file, int field, int time, bool read_hea
         }
     }
 
-    // decode the header for the current block
+    if (*file == nullptr) {
+      Error err;
+      err.code = Error::FileNotFound;
+      return err;
+    }
+
     IdxBlockHeader& header = (*block_headers)[block_in_file];
     header.swap_bytes();
     int64_t block_offset = header.offset();
@@ -667,7 +672,7 @@ Error read_idx_grid_inclusive(const IdxFile& idx_file, int field, int time,
     int min_hz = idx_file.get_min_hz_level();
     for (int l = min_hz; l <= hz_level; ++l) {
         err = read_idx_grid(idx_file, field, time, l, from, to, stride, grid);
-        if (err.code != Error::NoError) {
+        if (err.code!=Error::NoError && err.code!=Error::BlockNotFound && err.code!=Error::FileNotFound) {
             return err;
         }
     }
