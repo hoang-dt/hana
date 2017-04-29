@@ -37,59 +37,21 @@ void flip_bit(T& val, int i)
     val ^= static_cast<T>(1ull << i);
 }
 
-/** Count the number of trailing zero bits. */
-// TODO: un-inline this
-inline int num_trailing_zeros(uint64_t v)
-{
-    int c = 0;
-    if (v & 0x1) { // special case for odd v (assumed to happen half of the time)
-        return 0;
-    }
-    else {
-        c = 1;
-        if ((v & 0xffffffff) == 0) {
-            v >>= 32;
-            c += 32;
-        }
-        if ((v & 0xffff) == 0) {
-            v >>= 16;
-            c += 16;
-        }
-        if ((v & 0xff) == 0) {
-            v >>= 8;
-            c += 8;
-        }
-        if ((v & 0xf) == 0) {
-            v >>= 4;
-            c += 4;
-        }
-        if ((v & 0x3) == 0) {
-            v >>= 2;
-            c += 2;
-        }
-        if (v == 0) {
-            c += 1;
-        }
-        else {
-            c -= v & 0x1;
-        }
-    }
-    return c;
-}
-
+// TODO: replace this with the forward scan intrinsic
+#if defined(__GNUC__) || defined(__MINGW32__) || defined(__clang__)
 inline int num_leading_zeros(uint64_t v)
 {
-    if (v == 0) {
-        return sizeof(v) * 8;
-    }
-
-    int64_t vv = static_cast<int64_t>(v);
-    int result = 0;
-    while (vv >= 0) {
-        vv = vv << 1;
-        ++result;
-    }
-    return result;
+    return v==0 ? CHAR_BIT*sizeof(uint64_t) : __builtin_clzll(v);
 }
+#elif defined(_MSC_VER)
+#include <intrin.h>
+#pragma intrinsic(_BitScanReverse64)
+inline int num_leading_zeros(unsigned __int64 v)
+{
+  unsigned long index = 0;
+  _BitScanReverse64(&index, v);
+  return v==0 ? CHAR_BIT*sizeof(__int64) : CHAR_BIT*sizeof(__int64)-1-index;
+}
+#endif
 
 }

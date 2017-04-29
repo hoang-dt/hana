@@ -493,7 +493,7 @@ void test_read_idx_grid_11()
 
     IdxFile idx_file;
 
-    Error error = read_idx_file("../../../data/2x2.idx", &idx_file);
+    Error error = read_idx_file("../../../../data/2x2.idx", &idx_file);
     if (error.code != Error::NoError) {
         cout << "Error: " << error.get_error_msg() << "\n";
         return;
@@ -505,7 +505,7 @@ void test_read_idx_grid_11()
 
     Grid grid;
     grid.extent.from = Vector3i(0, 0, 0);
-    grid.extent.to = Vector3i(3, 3, 0);
+    grid.extent.to = Vector3i(1, 1, 0);
     grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
@@ -563,10 +563,6 @@ void test_read_idx_grid_12()
 
     string hash = md5(grid.data.ptr, (long) grid.data.bytes);
     cout << "MD5 = " << hash<< "\n";
-    FILE* fp = fopen("hana.raw", "wb");
-
-    fwrite(grid.data.ptr, grid.data.bytes, 1, fp);
-    fclose(fp);
 
     free(grid.data.ptr);
 }

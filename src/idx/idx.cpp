@@ -544,7 +544,7 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
     size_t samples_per_block = (size_t)pow2[idx_file.bits_per_block];
     size_t block_size = idx_file.fields[field].type.bytes() * samples_per_block;
     if (freelist.max_size() != block_size)
-        freelist.set_min_max_size(block_size / 2, block_size);
+        freelist.set_min_max_size(block_size / 2, std::max(sizeof(void*), block_size));
 
     FILE* file = nullptr;
     Error error;
@@ -619,9 +619,11 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                             b.data.bytes = b.bytes;
                             b.hz_address += old_hz;
                             old_hz = b.hz_address;
-                            b.from = get_first_coord(idx_file.bit_string, b.hz_level);
-                            b.stride = get_intra_level_strides(idx_file.bit_string, b.hz_level);
-                            b.to = get_last_coord(idx_file.bit_string, b.hz_level);
+                            if (b.hz_level <= hz_level) {
+                                b.from = get_first_coord(idx_file.bit_string, b.hz_level);
+                                b.stride = get_intra_level_strides(idx_file.bit_string, b.hz_level);
+                                b.to = get_last_coord(idx_file.bit_string, b.hz_level);
+                            }
                         }
 
                         mutex.lock();
@@ -699,7 +701,7 @@ Error write_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
     size_t samples_per_block = (size_t)pow2[idx_file.bits_per_block];
     size_t block_size = idx_file.fields[field].type.bytes() * samples_per_block;
     if (freelist.max_size() != block_size)
-        freelist.set_min_max_size(block_size / 2, block_size);
+        freelist.set_min_max_size(block_size / 2, std::max(sizeof(void*), block_size));
 
     FILE* file = nullptr;
     uint64_t last_first_block = (uint64_t)-1;
