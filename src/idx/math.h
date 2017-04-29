@@ -17,6 +17,7 @@ const T* power(T base)
     return memoir;
 }
 
+// TODO: replace pow2 by bit shifts
 static auto pow2 = power<int, 31>(2);
 static auto pow10 = power<int, 9>(10);
 
@@ -36,7 +37,7 @@ inline int pow_greater_equal(int base, int num)
 /** Find the integer log of a number in a given base.
 If the number is not a power of the base, round the log down. */
 template <typename T>
-inline int log_int(T base, T num)
+inline int log_int(int base, T num)
 {
     static_assert(std::is_integral<T>::value, "Integer required.");
 
@@ -51,5 +52,7 @@ inline int log_int(T base, T num)
     }
     return max(log - 1, 0);
 }
+
+// TODO: add a log2 function that uses the bsr instruction
 
 }

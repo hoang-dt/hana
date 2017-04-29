@@ -571,10 +571,25 @@ void test_read_idx_grid_12()
     free(grid.data.ptr);
 }
 
+void test_get_block_grid()
+{
+    char bs[] = "101010";
+    Vector3i from, to, stride;
+    get_block_grid(StringRef(bs), 3, 3, from, to, stride);
+    HANA_ASSERT(from.x == 0 && from.y == 5);
+    HANA_ASSERT(to.x == 6 && to.y == 7);
+    HANA_ASSERT(stride.x == 2 && stride.y == 2);
+    get_block_grid(StringRef(bs), 0, 3, from, to, stride);
+    HANA_ASSERT(from.x == 0 && from.y == 0);
+    HANA_ASSERT(to.x == 4 && to.y == 6);
+    HANA_ASSERT(stride.x == 4 && stride.y == 2);
+}
+
 int main()
 {
     using namespace hana;
 
+    test_get_block_grid();
     test_read_idx_grid_1();
     test_read_idx_grid_2();
     test_read_idx_grid_3();

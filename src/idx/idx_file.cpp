@@ -373,7 +373,7 @@ bool IdxFile::get_grid(const Volume& sub_vol, int hz_level,
 {
     HANA_ASSERT(sub_vol.is_valid() && sub_vol.is_inside(box));
     HANA_ASSERT(hz_level >= 0 && hz_level <= get_max_hz_level());
-    stride = get_intra_block_strides(bit_string, hz_level);
+    stride = get_intra_level_strides(bit_string, hz_level);
     Vector3i start = get_first_coord(bit_string, hz_level);
     Vector3i end = get_last_coord(bit_string, hz_level);
     return intersect_grid(sub_vol, start, end, stride, from, to);
@@ -386,7 +386,7 @@ bool IdxFile::get_grid_inclusive(const Volume& sub_vol, int hz_level,
     HANA_ASSERT(hz_level >= 0 && hz_level <= get_max_hz_level());
     Vector3i start = Vector3i(0, 0, 0);
     Vector3i end = get_last_coord(bit_string, hz_level);
-    stride = get_intra_block_strides(bit_string, hz_level + 1);
+    stride = get_intra_level_strides(bit_string, hz_level + 1);
     return intersect_grid(sub_vol, start, end, stride, from, to);
 }
 

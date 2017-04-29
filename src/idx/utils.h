@@ -130,11 +130,15 @@ Vector3i get_last_coord(StringRef bit_string, int hz_level);
 Vector3i get_first_coord(StringRef bit_string, int hz_level);
 
 /** Return the intra-block strides in x, y, and z for samples in a given hz level. */
-Vector3i get_intra_block_strides(StringRef bit_string, int hz_level);
+Vector3i get_intra_level_strides(StringRef bit_string, int hz_level);
 
 /** Return the strides (in terms of the first sample) of idx blocks, in x, y, and z. */
-Vector3i get_inter_block_strides(StringRef bit_string, int hz_level,
-                                       int bits_per_block);
+Vector3i get_inter_block_strides(StringRef bit_string, int hz_level, int bits_per_block);
+
+/** Get the grid of samples corresponding to a block, given the block's linear index
+(not its hz index). */
+void get_block_grid(StringRef bit_string, uint64_t block_number, int bits_per_block,
+                    OUT Vector3i& from, OUT Vector3i& to, OUT Vector3i& stride);
 
 /** Return the strides in x, y, z assuming the last "len" bits in the bit string
 are fixed. len can be larger than bit_string.size, in which case the strides will
@@ -167,6 +171,9 @@ uint64_t hz_to_z(StringRef bit_string, uint64_t hz);
 
 /** Convert an xyz address to an hz address. */
 uint64_t xyz_to_hz(StringRef bit_string, Vector3i coord);
+
+/** Convert an hz address to an xyz address. */
+Vector3i hz_to_xyz(StringRef bit_string, uint64_t hz);
 
 /** Intersect a grid (given by from, to, stride) with a volume. Return only the
 part of the grid that are within the volume. Return true if there is at least

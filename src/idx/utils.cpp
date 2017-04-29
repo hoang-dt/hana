@@ -106,7 +106,7 @@ Vector3i get_first_coord(StringRef bit_string, int hz_level)
     return coord;
 }
 
-Vector3i get_intra_block_strides(StringRef bit_string, int hz_level)
+Vector3i get_intra_level_strides(StringRef bit_string, int hz_level)
 {
     // count the number of x, y, z in the least significant (z_level + 1) bits
     // in the bit_string
@@ -115,17 +115,30 @@ Vector3i get_intra_block_strides(StringRef bit_string, int hz_level)
     return get_strides(bit_string, len);
 }
 
-/** Return the strides (in terms of the first sample) of idx blocks, in x, y, and z. */
-Vector3i get_inter_block_strides(StringRef bit_string, int hz_level,
-                                       int bits_per_block)
+Vector3i get_inter_block_strides(StringRef bit_string, int hz_level, int bits_per_block)
 {
     HANA_ASSERT(bit_string.size >= hz_level);
     // count the number of x, y, z in the least significant
     // (z_level + bits_per_block + 1) bits in the bit_string
     int len = static_cast<int>(bit_string.size) - hz_level + bits_per_block + 1;
     // len can get bigger than bit_string.size if the input hz_level is smaller
-    // than the mininum hz level
+    // than the minimum hz level
     return get_strides(bit_string, len);
+}
+
+void get_block_grid(StringRef bit_string, uint64_t block_number, int bits_per_block,
+                    OUT Vector3i& from, OUT Vector3i& to, OUT Vector3i& stride)
+{
+    uint64_t first_sample_hz = block_number << bits_per_block;
+    from = hz_to_xyz(bit_string, first_sample_hz);
+    uint64_t last_sample_hz = first_sample_hz + (1ull << bits_per_block) - 1;
+    to = hz_to_xyz(bit_string, last_sample_hz);
+    // NOTE: for the first block (first_sample_hz == 0), we increase the level of the last
+    // sample by one to correctly compute the strides (because this block contains samples
+    // from multiple levels)
+    int last_sample_level = (first_sample_hz == 0) ? (bits_per_block + 1)
+                                                   : (log_int(2, first_sample_hz) + 1);
+    stride = get_intra_level_strides(bit_string, last_sample_level);
 }
 
 Vector3i get_strides(StringRef bit_string, int len)

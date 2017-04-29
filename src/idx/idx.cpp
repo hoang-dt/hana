@@ -150,10 +150,10 @@ void get_block_addresses(const IdxFile& idx_file, const Volume& vol, int hz_leve
                     // hz levels in the block (from 0 to min hz level - 1), and
                     // the resulting grid has the same strides as those of the
                     // next hz level.
-                    block.stride = get_intra_block_strides(bit_string, hz_level + 1);
+                    block.stride = get_intra_level_strides(bit_string, hz_level + 1);
                 }
                 else {
-                    block.stride = get_intra_block_strides(bit_string, hz_level);
+                    block.stride = get_intra_level_strides(bit_string, hz_level);
                 }
                 block.to = block.from + stride - block.stride;
                 Vector3i last_coord = get_last_coord(bit_string, hz_level);
@@ -603,7 +603,7 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                         b.hz_level = 0;
                         b.data.bytes = b.bytes;
                         b.from = b.to = Vector3i(0, 0, 0);
-                        b.stride = get_intra_block_strides(idx_file.bit_string, b.hz_level);
+                        b.stride = get_intra_level_strides(idx_file.bit_string, b.hz_level);
                         uint64_t old_bytes = 0;
                         uint64_t old_hz = 1;
                         while (b.bytes < block.bytes && b.hz_level <= hz_level) {
@@ -620,7 +620,7 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                             b.hz_address += old_hz;
                             old_hz = b.hz_address;
                             b.from = get_first_coord(idx_file.bit_string, b.hz_level);
-                            b.stride = get_intra_block_strides(idx_file.bit_string, b.hz_level);
+                            b.stride = get_intra_level_strides(idx_file.bit_string, b.hz_level);
                             b.to = get_last_coord(idx_file.bit_string, b.hz_level);
                         }
 
