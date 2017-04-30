@@ -15,5 +15,4 @@ if (DOXYGEN_FOUND)
 		COMMENT "Generating API documentation w/ Doxygen" VERBATIM)
 endif()
 
-add_subdirectory(external)
 add_subdirectory(src)

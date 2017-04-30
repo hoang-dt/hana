@@ -66,7 +66,7 @@ size_t find_last(StringRef str, StringRef sub)
     if (sub.size > str.size) {
         return size_max_;
     }
-    /* comparing size_t i >= 0 is always true which leads to possible memory
+    /* TODO comparing size_t i >= 0 is always true which leads to possible memory
        access outside the string str memory bounds */
     for (size_t i = str.size - sub.size + 1; i--;) {
         bool found = true;

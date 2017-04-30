@@ -1,10 +1,10 @@
 add_library(hana
             allocator.h array.h bitops.h constants.h debugbreak.h error.h
             filesystem.h io.h logger.h macros.h math.h scope_guard.h streams.h string.h
-            time.h types.h utils.h vector.h
+            time.h types.h utils.h vector.h miniz.h
             assert.cpp error.cpp filesystem.cpp logger.cpp string.cpp time.cpp
             error.h idx.h idx_block.h idx_file.h types.h utils.h
-            error.cpp idx.cpp idx_block.cpp idx_file.cpp types.cpp utils.cpp)
+            error.cpp idx.cpp idx_block.cpp idx_file.cpp types.cpp utils.cpp miniz.c)
 target_link_libraries(hana ${CMAKE_THREAD_LIBS_INIT})
 
 set(IDX_HEADERS
@@ -29,13 +29,6 @@ elseif(UNIX OR APPLE OR MINGW)
 endif()
 target_compile_definitions(hana PUBLIC $<$<CONFIG:DEBUG>:HANA_ASSERT_ON>)
 
-# zlib compression
-if(ZLIB_ENABLED)
-    target_compile_definitions(hana PRIVATE ZLIB_ENABLED=1)
-    add_dependencies(hana blosc_static)
-    target_link_libraries(hana blosc_static)
-endif()
-
 # install
 install(TARGETS hana
     EXPORT hana-config
@@ -43,4 +36,3 @@ install(TARGETS hana
     PUBLIC_HEADER DESTINATION include/hana)
 
 install(EXPORT hana-config DESTINATION lib/hana)
-

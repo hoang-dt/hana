@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <chrono>
 
 using namespace hana;
 using namespace std;
@@ -567,6 +568,48 @@ void test_read_idx_grid_12()
     free(grid.data.ptr);
 }
 
+/* decompression test */
+void test_read_idx_grid_13()
+{
+    cout << "Test 12" << endl;
+
+    IdxFile idx_file;
+    Error error = read_idx_file("D:/Workspace/GenVolume/x64/Release/vol.idx", &idx_file);
+    if (error.code != Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    int hz_level = idx_file.get_max_hz_level();
+    int field = idx_file.get_field_index("DATA");
+    int time = idx_file.get_min_time_step();
+
+    Grid grid;
+    grid.extent = idx_file.get_logical_extent();
+    grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
+    grid.data.ptr = (char*)calloc(grid.data.bytes, 1);
+
+    Vector3i from, to, stride;
+    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    Vector3i dim = (to - from) / stride + 1;
+    cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
+
+    error = read_idx_grid_inclusive(idx_file, field, time, hz_level, &grid);
+    deallocate_memory();
+
+    if (error.code != Error::NoError) {
+        cout << "Error: " << error.get_error_msg() << "\n";
+        return;
+    }
+
+    ofstream output("out.raw", ios::binary);
+    output.write(grid.data.ptr, grid.data.bytes);
+    string hash = md5(grid.data.ptr, (long) grid.data.bytes);
+    cout << "MD5 = " << hash<< "\n";
+
+    free(grid.data.ptr);
+}
+
 void test_get_block_grid()
 {
     char bs[] = "101010";
@@ -584,7 +627,8 @@ void test_get_block_grid()
 int main()
 {
     using namespace hana;
-
+    using namespace std::chrono;
+    high_resolution_clock::time_point t1 = high_resolution_clock::now();
     test_get_block_grid();
     test_read_idx_grid_1();
     test_read_idx_grid_2();
@@ -599,5 +643,9 @@ int main()
     test_read_idx_grid_11();
  //   performance_test();
     test_read_idx_grid_12();
+    test_read_idx_grid_13();
+    high_resolution_clock::time_point t2 = high_resolution_clock::now();
+    duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
+    std::cout << "Running all tests took " << time_span.count() << " seconds.";
     return 0;
 }

@@ -227,9 +227,13 @@ Vector3i deinterleave_bits(StringRef bit_string, uint64_t val)
 uint64_t z_to_hz(StringRef bit_string, uint64_t z)
 {
     HANA_ASSERT(bit_string.size > 0 && bit_string.size < 64);
-    z |= uint64_t(1) << (bit_string.size);
-    z /= z & -int64_t(z);
-    z >>= 1;
+    if (z == 0) return 0;
+    int nz = num_trailing_zeros(z);
+    z >>= (nz + 1);
+    z |= (1ull << (bit_string.size-1-nz));
+    //z |= uint64_t(1) << (bit_string.size);
+    //z /= z & -int64_t(z);
+    //z >>= 1;
     return z;
 }
 

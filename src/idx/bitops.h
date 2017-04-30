@@ -43,14 +43,24 @@ inline int num_leading_zeros(uint64_t v)
 {
     return v==0 ? CHAR_BIT*sizeof(uint64_t) : __builtin_clzll(v);
 }
+inline int num_trailing_zeros(uint64_t v)
+{
+    return v==0 ? CHAR_BIT*sizeof(uint64_t) : __builtin_ctzll(v);
+}
 #elif defined(_MSC_VER)
 #include <intrin.h>
 #pragma intrinsic(_BitScanReverse64)
 inline int num_leading_zeros(unsigned __int64 v)
 {
-  unsigned long index = 0;
-  _BitScanReverse64(&index, v);
-  return v==0 ? CHAR_BIT*sizeof(__int64) : CHAR_BIT*sizeof(__int64)-1-index;
+    unsigned long index = 0;
+    _BitScanReverse64(&index, v);
+    return v==0 ? CHAR_BIT*sizeof(__int64) : CHAR_BIT*sizeof(__int64)-1-index;
+}
+inline int num_trailing_zeros(unsigned __int64 v)
+{
+    unsigned long index = 0;
+    _BitScanForward64(&index, v);
+    return v==0 ? CHAR_BIT*sizeof(__int64) : index;
 }
 #endif
 

@@ -9,14 +9,12 @@
 #include "utils.h"
 #include "idx.h"
 #include "error.h"
+#include "miniz.h"
 #include <algorithm>
 #include <array>
 #include <iostream>
 #include <thread>
 #include <mutex>
-#ifdef ZLIB_ENABLED
-#include <blosc.h>
-#endif
 
 namespace hana {
 
@@ -571,19 +569,24 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
                 error = err;
                 continue; // these are not critical errors (a block may not be saved yet)
             }
-#ifdef ZLIB_ENABLED
             if (block.compression == Compression::Zip) {
+                mutex.lock();
                 MemBlockChar dst = freelist.allocate(block_size);
-                blosc_decompress_ctx2("zlib", block.data.ptr, dst.ptr, dst.bytes, 1);
+                mutex.unlock();
+                uLong dest_len = dst.bytes;
+                Bytef* dest = (Bytef*)dst.ptr;
+                Bytef* src = (Byte*)block.data.ptr;
+                uncompress(dest, &dest_len, src, block.data.bytes);
                 std::swap(block.data, dst);
+                block.bytes = block.data.bytes;
+                mutex.lock();
                 freelist.deallocate(dst);
+                mutex.unlock();
             }
-#else
-            if (block.compression != Compression::None) {
+            else if (block.compression != Compression::None) {
                 error = Error::CompressionUnsupported;
                 goto WAIT;
             }
-#endif
             if (block.format == Format::RowMajor) {
                 threads[thread_count++] = std::thread([&, block]() {
                     forward_functor<put_block_to_grid, int>(block.type.bytes(),
