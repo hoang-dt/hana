@@ -571,7 +571,7 @@ void test_read_idx_grid_12()
 /* decompression test */
 void test_read_idx_grid_13()
 {
-    cout << "Test 12" << endl;
+    cout << "Test 13" << endl;
 
     IdxFile idx_file;
     Error error = read_idx_file("D:/Workspace/GenVolume/x64/Release/vol.idx", &idx_file);

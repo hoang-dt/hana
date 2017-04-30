@@ -136,7 +136,11 @@ Vector3i get_intra_level_strides(StringRef bit_string, int hz_level);
 Vector3i get_inter_block_strides(StringRef bit_string, int hz_level, int bits_per_block);
 
 /** Get the grid of samples corresponding to a block, given the block's linear index
-(not its hz index). */
+(not its hz index).
+
+NOTE: for non-power-of-2 volumes, you may want to call the function intersect_grid on the
+output of this function to "clamp" the grid of the block to within the volume's boundary
+(some blocks may partially intersect with the volume, and some may not intersect at all). */
 void get_block_grid(StringRef bit_string, uint64_t block_number, int bits_per_block,
                     OUT Vector3i& from, OUT Vector3i& to, OUT Vector3i& stride);
 
