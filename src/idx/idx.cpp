@@ -245,7 +245,7 @@ Error read_idx_block(const IdxFile& idx_file, int field, int time, bool read_hea
     block->data = alloc.allocate(block->bytes);
     mutex.unlock();
     fseek(*file, block_offset, SEEK_SET);
-    if (fread(block->data.ptr, block->data.bytes, 1, *file) != 1)
+    if (fread(block->data.ptr, block->bytes, 1, *file) != 1)
         return Error::BlockReadFailed; // critical error
 
     return Error::NoError;

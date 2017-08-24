@@ -1,6 +1,7 @@
 #pragma once
 
 #include "assert.h"
+#include <climits>
 #include <cstdint>
 
 namespace hana {
