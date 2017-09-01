@@ -17,7 +17,7 @@ namespace hana {
     uint64_t block, int bits_per_block, int blocks_per_file,
     OUT uint64_t* first_block, OUT int* block_in_file);
 
-  Error read_block_headers(
+  Error read_all_block_headers(
     IN_OUT FILE** file, const char* bin_path, int field, int blocks_per_file,
     IN_OUT Array<IdxBlockHeader>* headers);
 

@@ -254,8 +254,8 @@ Error read_idx_grid(
     int thread_count = 0;
     for (size_t j = 0; j < num_thread_max && i + j < idx_blocks.size(); ++j) {
       IdxBlock& block = idx_blocks[i + j];
-      Error err = read_idx_block(idx_file, field, time, true, &last_first_block,
-                     &file, &block_headers, &block, freelist);
+      Error err = read_idx_block(
+        idx_file, field, time, true, &last_first_block,&file, &block_headers, &block, freelist);
       if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
         error = err;
         goto WAIT;
@@ -284,8 +284,8 @@ Error read_idx_grid(
       }
       if (block.format == Format::RowMajor) {
         threads[thread_count++] = std::thread([&, block]() {
-          forward_functor<put_block_to_grid, int>(block.type.bytes(),
-            block, output_from, output_to, output_stride, grid);
+          forward_functor<put_block_to_grid, int>(
+            block.type.bytes(), block, output_from, output_to, output_stride, grid);
           mutex.lock();
           freelist.deallocate(block.data);
           mutex.unlock();
@@ -307,8 +307,8 @@ Error read_idx_grid(
             while (b.bytes < block.bytes && b.hz_level <= hz_level) {
               // each iteration corresponds to one hz level,
               // starting from 0 until min_hz_level - 1
-              forward_functor<put_block_to_grid_hz, int>(b.type.bytes(),
-                idx_file.bit_string, idx_file.bits_per_block, b,
+              forward_functor<put_block_to_grid_hz, int>(
+                b.type.bytes(), idx_file.bit_string, idx_file.bits_per_block, b,
                 output_from, output_to, output_stride, grid);
               ++b.hz_level;
               b.data.ptr = b.data.ptr + b.bytes;
@@ -331,8 +331,8 @@ Error read_idx_grid(
         }
         else { // for hz levels >= min hz level
           threads[thread_count++] = std::thread([&](){
-            forward_functor<put_block_to_grid_hz, int>(block.type.bytes(),
-              idx_file.bit_string, idx_file.bits_per_block, block,
+            forward_functor<put_block_to_grid_hz, int>(
+              block.type.bytes(), idx_file.bit_string, idx_file.bits_per_block, block,
               output_from, output_to, output_stride, grid);
             mutex.lock();
             freelist.deallocate(block.data);
@@ -347,13 +347,15 @@ Error read_idx_grid(
 
     // wait for all the threads to finish before spawning new ones
 WAIT:
-    for (int j = 0; j < thread_count; ++j)
+    for (int j = 0; j < thread_count; ++j) {
       threads[j].join();
+    }
     thread_count = 0;
   }
 
-  if (file)
+  if (file) {
     fclose(file);
+  }
 
   return error;
 }

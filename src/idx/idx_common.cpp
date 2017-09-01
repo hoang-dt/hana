@@ -179,19 +179,20 @@ Error read_idx_block(
   // block index is the rank of this block (0th block, 1st block, 2nd,...)
   uint64_t first_block = 0;
   int block_in_file = 0;
-  get_first_block_in_file(block->hz_address, idx_file.bits_per_block,
-              idx_file.blocks_per_file, &first_block, &block_in_file);
+  get_first_block_in_file(
+    block->hz_address, idx_file.bits_per_block, idx_file.blocks_per_file, &first_block, &block_in_file);
   char bin_path[512]; // path to the binary file that stores the block
   get_file_name_from_hz(idx_file, time, first_block, STR_REF(bin_path));
   if (*last_first_block != first_block) { // open a new file
     *last_first_block = first_block;
-    if (*file)
+    if (*file) {
       fclose(*file);
+    }
     if (read_headers) {
-      Error err = read_block_headers(file, bin_path, field,
-                       idx_file.blocks_per_file, block_headers);
-      if (err.code != Error::NoError)
+      Error err = read_all_block_headers(file, bin_path, field, idx_file.blocks_per_file, block_headers);
+      if (err.code != Error::NoError) {
         return err;
+      }
     }
   }
 
@@ -205,12 +206,14 @@ Error read_idx_block(
   header.swap_bytes();
   int64_t block_offset = header.offset();
   block->bytes = header.bytes();
-  if (block_offset == 0 || block->bytes == 0)
+  if (block_offset == 0 || block->bytes == 0) {
     return Error::BlockNotFound; // not a critical error
+  }
   block->compression = header.compression();
   HANA_ASSERT(block->compression != Compression::Invalid);
-  if (block->compression == Compression::Invalid)
+  if (block->compression == Compression::Invalid) {
     return Error::InvalidCompression; // critical error
+  }
   block->format = header.format();
   block->type = idx_file.fields[field].type;
 
@@ -219,27 +222,48 @@ Error read_idx_block(
   block->data = alloc.allocate(block->bytes);
   mutex.unlock();
   fseek(*file, block_offset, SEEK_SET);
-  if (fread(block->data.ptr, block->bytes, 1, *file) != 1)
+  if (fread(block->data.ptr, block->bytes, 1, *file) != 1) {
     return Error::BlockReadFailed; // critical error
+  }
 
   return Error::NoError;
 }
 
 /** Given a binary file, read all the block headers from the file. */
-Error read_block_headers(IN_OUT FILE** file, const char* bin_path, int field,
-             int blocks_per_file,
-             IN_OUT Array<IdxBlockHeader>* headers)
+Error read_all_block_headers(
+  IN_OUT FILE** file, const char* bin_path, int field, int blocks_per_file,
+  OUT Array<IdxBlockHeader>* headers)
 {
   HANA_ASSERT(file != nullptr);
   *file = fopen(bin_path, "rb");
-  if (!*file)
+  if (!*file) {
     return Error::FileNotFound;
-  if (fseek(*file, sizeof(IdxFileHeader) +
-    sizeof(IdxBlockHeader) * blocks_per_file * field, SEEK_SET))
+  }
+  if (fseek(*file, sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * blocks_per_file * field, SEEK_SET)) {
     return Error::HeaderNotFound;
-  if (fread(&(*headers)[0], sizeof(IdxBlockHeader), blocks_per_file, *file)
-    != blocks_per_file)
+  }
+  if (fread(&(*headers)[0], sizeof(IdxBlockHeader), blocks_per_file, *file) != blocks_per_file) {
     return Error::HeaderNotFound;
+  }
+  return Error::NoError;
+}
+
+/** Read one block header from a given file. */
+Error read_one_block_header(
+  IN_OUT FILE** file, const char* bin_path, int field, int blocks_per_file, uint64_t block_in_file,
+  OUT IdxBlockHeader* header)
+{
+  HANA_ASSERT(file != nullptr);
+  *file = fopen(bin_path, "rb");
+  if (!*file) {
+    return Error::FileNotFound;
+  }
+  if (fseek(*file, sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * (blocks_per_file * field + block_in_file), SEEK_SET)) {
+    return Error::HeaderNotFound;
+  }
+  if (fread(header, sizeof(IdxBlockHeader), 1, *file) != 1) {
+    return Error::HeaderNotFound;
+  }
   return Error::NoError;
 }
 

@@ -13,8 +13,8 @@ namespace hana {
 extern FreelistAllocator<Mallocator> freelist;
 
 Error write_idx_block(
-  const IdxFile& idx_file, int field, int time, const Array<IdxBlockHeader>& block_headers,
-  const IdxBlock& block, IN_OUT uint64_t* last_first_block_index, IN_OUT FILE** file)
+  const IdxFile& idx_file, int field, int time, const IdxBlock& block, bool read,
+  IN_OUT uint64_t* last_first_block_index, IN_OUT FILE** file)
 {
   HANA_ASSERT(last_first_block_index != nullptr);
   HANA_ASSERT(file != nullptr);
@@ -29,19 +29,26 @@ Error write_idx_block(
   get_file_name_from_hz(idx_file, time, first_block_index, STR_REF(bin_path));
   if (*last_first_block_index != first_block_index) { // open a new file
     *last_first_block_index = first_block_index;
-    if (*file)
+    if (*file) {
       fclose(*file);
+    }
     *file = fopen(bin_path, "wb");
-    if (!*file)
+    if (!*file) {
       return Error::FileNotFound;
+    }
   }
 
   // write the actual data
-  const IdxBlockHeader& header = block_headers[block_in_file];
-  HANA_ASSERT(header.offset() != 0);
-  fseek(*file, header.offset(), SEEK_SET);
-  if (fwrite(block.data.ptr, block.data.bytes, 1, *file) != 1)
-    return Error::BlockWriteFailed;
+  //const IdxBlockHeader& header = (*block_headers)[block_in_file];
+  //if (header.offset() == 0) {
+  //  fseek();
+  //}
+  //else {
+  //  fseek(*file, header.offset(), SEEK_SET);
+  //}
+  //if (fwrite(block.data.ptr, block.data.bytes, 1, *file) != 1) {
+  //  return Error::BlockWriteFailed;
+  //}
 
   return Error::NoError;
 }
@@ -51,6 +58,21 @@ TODO: this function overlaps quite a bit with read_idx_grid. */
 Error write_idx_grid(
   const IdxFile& idx_file, int field, int time, int hz_level, const Grid& grid, bool read)
 {
+  // check the inputs
+  if (!verify_idx_file(idx_file))
+    return Error::InvalidIdxFile;
+  if (field < 0 || field > idx_file.num_fields)
+    return Error::FieldNotFound;
+  if (time < idx_file.time.begin || time > idx_file.time.end)
+    return Error::TimeStepNotFound;
+  if (hz_level < 0 || hz_level > idx_file.get_max_hz_level())
+    return Error::InvalidHzLevel;
+  if (!grid.extent.is_valid())
+    return Error::InvalidVolume;
+  if (!grid.extent.is_inside(idx_file.box))
+    return Error::VolumeTooBig;
+  HANA_ASSERT(grid.data.ptr);
+
   /* figure out which blocks touch this grid */
   Mallocator mallocator;
   Array<IdxBlock> idx_blocks(&mallocator);
@@ -64,6 +86,7 @@ Error write_idx_grid(
     freelist.set_min_max_size(block_size / 2, std::max(sizeof(void*), block_size));
 
   FILE* file = nullptr;
+  Error error = Error::NoError;
   uint64_t last_first_block = (uint64_t)-1;
 
   size_t num_thread_max = size_t(std::thread::hardware_concurrency());
@@ -78,19 +101,18 @@ Error write_idx_grid(
       IdxBlock& block = idx_blocks[i + j];
       Error err = Error::NoError;
       if (read) {
-        // read the headers
         uint64_t first_block = 0;
         int block_in_file = 0;
-        get_first_block_in_file(block.hz_address, idx_file.bits_per_block,
-                    idx_file.blocks_per_file, &first_block,
-                    &block_in_file);
+        get_first_block_in_file(
+          block.hz_address, idx_file.bits_per_block, idx_file.blocks_per_file,
+          &first_block, &block_in_file);
         char bin_path[512];
         get_file_name_from_hz(idx_file, time, first_block, STR_REF(bin_path));
-        err = read_block_headers(&file, bin_path, field,
-                     idx_file.blocks_per_file, &block_headers);
+        err = read_all_block_headers(
+          &file, bin_path, field, idx_file.blocks_per_file, &block_headers);
         if (err.code != Error::NoError) {
-          err = read_idx_block(idx_file, field, time, false, &last_first_block,
-                      &file, &block_headers, &block, freelist);
+          err = read_idx_block(
+            idx_file, field, time, false, &last_first_block, &file, &block_headers, &block, freelist);
         }
       }
       if (err == Error::HeaderNotFound) { // write the headers
