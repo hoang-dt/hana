@@ -286,9 +286,7 @@ Error read_idx_grid(
         threads[thread_count++] = std::thread([&, block]() {
           forward_functor<put_block_to_grid, int>(
             block.type.bytes(), block, output_from, output_to, output_stride, grid);
-          mutex.lock();
-          freelist.deallocate(block.data);
-          mutex.unlock();
+          mutex.lock(); freelist.deallocate(block.data); mutex.unlock();
         });
       } else if (block.format == Format::Hz) {
         if (hz_level < idx_file.get_min_hz_level()) {
@@ -324,9 +322,7 @@ Error read_idx_grid(
               }
             }
 
-            mutex.lock();
-            freelist.deallocate(block.data);
-            mutex.unlock();
+            mutex.lock(); freelist.deallocate(block.data); mutex.unlock();
           });
         }
         else { // for hz levels >= min hz level
@@ -334,9 +330,7 @@ Error read_idx_grid(
             forward_functor<put_block_to_grid_hz, int>(
               block.type.bytes(), idx_file.bit_string, idx_file.bits_per_block, block,
               output_from, output_to, output_stride, grid);
-            mutex.lock();
-            freelist.deallocate(block.data);
-            mutex.unlock();
+            mutex.lock(); freelist.deallocate(block.data); mutex.unlock();
           });
         }
       } else {

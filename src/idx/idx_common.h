@@ -27,4 +27,7 @@ namespace hana {
     IN_OUT Array<IdxBlockHeader>* block_headers,
     IN_OUT IdxBlock* block, Allocator& alloc);
 
+  Error read_one_block_header(
+    IN_OUT FILE** file, const char* bin_path, int field, int blocks_per_file, uint64_t block_in_file,
+    OUT IdxBlockHeader* header);
 }

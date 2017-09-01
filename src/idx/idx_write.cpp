@@ -32,23 +32,32 @@ Error write_idx_block(
     if (*file) {
       fclose(*file);
     }
-    *file = fopen(bin_path, "wb");
+    *file = fopen(bin_path, "rb+");
     if (!*file) {
       return Error::FileNotFound;
     }
   }
 
   // write the actual data
-  //const IdxBlockHeader& header = (*block_headers)[block_in_file];
-  //if (header.offset() == 0) {
-  //  fseek();
-  //}
-  //else {
-  //  fseek(*file, header.offset(), SEEK_SET);
-  //}
-  //if (fwrite(block.data.ptr, block.data.bytes, 1, *file) != 1) {
-  //  return Error::BlockWriteFailed;
-  //}
+  IdxBlockHeader header;
+  if (read) {
+    Error err = read_one_block_header(file, bin_path, field, bpf, block_in_file, &header);
+    if (err.code != Error::NoError && err.code != Error::HeaderNotFound) {
+      return err;
+    }
+    if (header.offset() == 0) { // the block has not been written yet, write to the end of the file
+      fseek(*file, 0, SEEK_END);
+    }
+    else {
+      fseek(*file, header.offset(), SEEK_SET);
+    }
+  }
+  else { // do not read before write, write to the end of the file
+    fseek(*file, 0, SEEK_END);
+  }
+  if (fwrite(block.data.ptr, block.data.bytes, 1, *file) != 1) {
+    return Error::BlockWriteFailed;
+  }
 
   return Error::NoError;
 }
