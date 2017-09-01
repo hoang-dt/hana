@@ -12,14 +12,12 @@ namespace hana {
 
 extern FreelistAllocator<Mallocator> freelist;
 
-Error write_idx_block(const IdxFile& idx_file, int field, int time,
-            const Array<IdxBlockHeader>& block_headers,
-            const IdxBlock& block,
-            IN_OUT uint64_t* last_first_block_index, IN_OUT FILE** file)
+Error write_idx_block(
+  const IdxFile& idx_file, int field, int time, const Array<IdxBlockHeader>& block_headers,
+  const IdxBlock& block, IN_OUT uint64_t* last_first_block_index, IN_OUT FILE** file)
 {
   HANA_ASSERT(last_first_block_index != nullptr);
   HANA_ASSERT(file != nullptr);
-
 
   int bpf = idx_file.blocks_per_file;
   uint64_t block_index = block.hz_address >> idx_file.bits_per_block;
@@ -50,8 +48,8 @@ Error write_idx_block(const IdxFile& idx_file, int field, int time,
 
 /* Write an IDX grid at one particular HZ level.
 TODO: this function overlaps quite a bit with read_idx_grid. */
-Error write_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
-           const Grid& grid, bool read)
+Error write_idx_grid(
+  const IdxFile& idx_file, int field, int time, int hz_level, const Grid& grid, bool read)
 {
   /* figure out which blocks touch this grid */
   Mallocator mallocator;
@@ -126,8 +124,49 @@ Error write_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
   return Error::NoError;
 }
 
-Error write_idx_grid(const IdxFile& idx_file, int field, int time,
-           const Grid& grid, bool read)
+/** Copy data from a rectilinear grid to an idx block, assuming the samples in
+both are in row-major order. Here we don't need to specify the input grid's
+from/to/stride because most of the time (a subset of) the original grid is given. */
+template <typename T>
+struct put_grid_to_block {
+void operator()(const Grid& grid, IN_OUT IdxBlock* block)
+{
+  Vector3i from, to;
+  if (!intersect_grid(grid.extent, block->from, block->to, block->stride, &from, &to)) {
+    return;
+  }
+
+  T* src = reinterpret_cast<T*>(grid.data.ptr);
+  T* dst = reinterpret_cast<T*>(block->data.ptr);
+  HANA_ASSERT(src && dst);
+  // TODO: optimize this loop (parallelize?)
+  Vector3i output_dims = (block->to - block->from) / block->stride + 1;
+  uint64_t sx = output_dims.x, sxy = output_dims.x * output_dims.y;
+  Vector3i input_dims = grid.extent.to - grid.extent.from + 1;
+  uint64_t dx = input_dims.x, dxy = input_dims.x * input_dims.y;
+  for (int z = from.z,
+    k = (from.z - block->from.z) / block->stride.z; // index into the block's buffer
+    z <= to.z; // loop variable and index into the grid's buffer
+    z += block->stride.z, ++k) {
+    for (int y = from.y,
+      j = (from.y - block->from.y) / block->stride.y;
+      y <= to.y;
+      y += block->stride.y, ++j) {
+      for (int x = from.x,
+        i = (from.x - block->from.x) / block->stride.x;
+        x <= to.x;
+        x += block->stride.x, ++i) {
+        uint64_t ijk = i + j * sx + k * sxy;
+        uint64_t xyz = x + y * dx + z * dxy;
+        dst[ijk] = src[xyz];
+      }
+    }
+  }
+}
+};
+
+Error write_idx_grid(
+  const IdxFile& idx_file, int field, int time, const Grid& grid, bool read)
 {
   HANA_ASSERT(grid.data.ptr != nullptr);
   int min_hz = idx_file.get_min_hz_level();

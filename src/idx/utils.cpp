@@ -289,9 +289,10 @@ Vector3i hz_to_xyz(StringRef bit_string, uint64_t hz)
     return xyz;
 }
 
-bool intersect_grid(const Volume& vol, const Vector3i& from,
-                    const Vector3i& to, const Vector3i& stride,
-                    OUT Vector3i& output_from, OUT Vector3i& output_to)
+bool intersect_grid(
+  const Volume& vol, const Vector3i& from,
+  const Vector3i& to, const Vector3i& stride,
+  OUT Vector3i* output_from, OUT Vector3i* output_to)
 {
     HANA_ASSERT(vol.is_valid());
 
@@ -300,19 +301,19 @@ bool intersect_grid(const Volume& vol, const Vector3i& from,
     min_to.y = min(min_to.y, to.y);
     min_to.z = min(min_to.z, to.z);
 
-    output_from = from + ((vol.from + stride - 1 - from) / stride) * stride;
-    output_to = from + ((min_to - from) / stride) * stride;
+    (*output_from) = from + ((vol.from + stride - 1 - from) / stride) * stride;
+    (*output_to) = from + ((min_to - from) / stride) * stride;
 
     // we need to do the following corrections because the behavior of integer
     // division with negative integers are not well defined...
-    if (vol.from.x < from.x) { output_from.x = from.x; }
-    if (vol.from.y < from.y) { output_from.y = from.y; }
-    if (vol.from.z < from.z) { output_from.z = from.z; }
-    if (min_to.x < from.x) { output_to.x = from.x - stride.x; }
-    if (min_to.y < from.y) { output_to.y = from.y - stride.y; }
-    if (min_to.z < from.z) { output_to.z = from.z - stride.z; }
+    if (vol.from.x < from.x) { output_from->x = from.x; }
+    if (vol.from.y < from.y) { output_from->y = from.y; }
+    if (vol.from.z < from.z) { output_from->z = from.z; }
+    if (min_to.x < from.x) { output_to->x = from.x - stride.x; }
+    if (min_to.y < from.y) { output_to->y = from.y - stride.y; }
+    if (min_to.z < from.z) { output_to->z = from.z - stride.z; }
 
-    return output_from <= output_to;
+    return (*output_from) <= (*output_to);
 }
 
 }

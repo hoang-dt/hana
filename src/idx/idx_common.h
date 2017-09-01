@@ -3,8 +3,8 @@
 #include "macros.h"
 #include <cstdint>
 
-extern class IdxFile;
-extern class StringRef;
+class IdxFile;
+class StringRef;
 
 namespace hana {
   void get_file_name_from_hz(

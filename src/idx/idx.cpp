@@ -50,10 +50,10 @@ TODO: One optimization would be to build a look up table for a small number of
 samples and stop the recursion before it gets to a single sample. */
 template <typename T>
 struct put_block_to_grid_hz {
-void operator()(const StringRef bit_string, int bits_per_block,
-        const IdxBlock& block, const Vector3i& output_from,
-        const Vector3i& output_to,
-        const Vector3i& output_stride, IN_OUT Grid* grid)
+void operator()(
+  const StringRef bit_string, int bits_per_block,
+  const IdxBlock& block, const Vector3i& output_from, const Vector3i& output_to, const Vector3i& output_stride,
+  IN_OUT Grid* grid)
 {
   HANA_ASSERT(block.hz_level <= bit_string.size);
 
@@ -140,12 +140,13 @@ both are in row-major order. output_from/to/stride describe the output grid in r
 entire domain. */
 template <typename T>
 struct put_block_to_grid {
-void operator()(const IdxBlock& block, const Vector3i& output_from,
-        const Vector3i& output_to, const Vector3i& output_stride,
-        IN_OUT Grid* grid)
+void operator()(
+  const IdxBlock& block, const Vector3i& output_from,
+  const Vector3i& output_to, const Vector3i& output_stride,
+  IN_OUT Grid* grid)
 {
   Vector3i from, to;
-  if (!intersect_grid(grid->extent, block.from, block.to, block.stride, from, to)) {
+  if (!intersect_grid(grid->extent, block.from, block.to, block.stride, &from, &to)) {
     return;
   }
 
@@ -182,53 +183,11 @@ void operator()(const IdxBlock& block, const Vector3i& output_from,
 }
 };
 
-/** Copy data from a rectilinear grid to an idx block, assuming the samples in
-both are in row-major order. Here we don't need to specify the input grid's
-from/to/stride because most of the time (a subset of) the original grid is given. */
-template <typename T>
-struct put_grid_to_block {
-void operator()(const Grid& grid, IN_OUT IdxBlock* block)
-{
-  //    using namespace core;
-  Vector3i from, to;
-  if (!intersect_grid(grid.extent, block->from, block->to, block->stride, from, to)) {
-    return;
-  }
-
-  T* src = reinterpret_cast<T*>(grid.data.ptr);
-  T* dst = reinterpret_cast<T*>(block->data.ptr);
-  HANA_ASSERT(src && dst);
-  // TODO: optimize this loop (parallelize?)
-  Vector3i output_dims = (block->to - block->from) / block->stride + 1;
-  uint64_t sx = output_dims.x, sxy = output_dims.x * output_dims.y;
-  Vector3i input_dims = grid.extent.to - grid.extent.from + 1;
-  uint64_t dx = input_dims.x, dxy = input_dims.x * input_dims.y;
-  for (int z = from.z,
-    k = (from.z - block->from.z) / block->stride.z; // index into the block's buffer
-    z <= to.z; // loop variable and index into the grid's buffer
-    z += block->stride.z, ++k) {
-    for (int y = from.y,
-      j = (from.y - block->from.y) / block->stride.y;
-      y <= to.y;
-      y += block->stride.y, ++j) {
-      for (int x = from.x,
-        i = (from.x - block->from.x) / block->stride.x;
-        x <= to.x;
-        x += block->stride.x, ++i) {
-        uint64_t ijk = i + j * sx + k * sxy;
-        uint64_t xyz = x + y * dx + z * dxy;
-        dst[ijk] = src[xyz];
-      }
-    }
-  }
-}
-};
-
 // TODO: remove global vars like this one
 FreelistAllocator<Mallocator> freelist;
 
-Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
-          IN_OUT Grid* grid)
+Error read_idx_grid(
+  const IdxFile& idx_file, int field, int time, int hz_level, IN_OUT Grid* grid)
 {
   grid->type = idx_file.fields[field].type;
   Vector3i from, to, stride;
@@ -236,9 +195,10 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
   return read_idx_grid(idx_file, field, time, hz_level, from, to, stride, grid);
 }
 
-Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
-          const Vector3i& output_from, const Vector3i& output_to,
-          const Vector3i& output_stride, IN_OUT Grid* grid)
+Error read_idx_grid(
+  const IdxFile& idx_file, int field, int time, int hz_level,
+  const Vector3i& output_from, const Vector3i& output_to,
+  const Vector3i& output_stride, IN_OUT Grid* grid)
 {
   // check the inputs
   if (!verify_idx_file(idx_file))
@@ -308,10 +268,10 @@ Error read_idx_grid(const IdxFile& idx_file, int field, int time, int hz_level,
         mutex.lock();
         MemBlockChar dst = freelist.allocate(block_size);
         mutex.unlock();
-        uLong dest_len = dst.bytes;
+        uLong dest_len = static_cast<uLong>(dst.bytes);
         Bytef* dest = (Bytef*)dst.ptr;
         Bytef* src = (Byte*)block.data.ptr;
-        uncompress(dest, &dest_len, src, block.data.bytes);
+        uncompress(dest, &dest_len, src, static_cast<uLong>(block.data.bytes));
         std::swap(block.data, dst);
         block.bytes = block.data.bytes;
         mutex.lock();
@@ -398,8 +358,8 @@ WAIT:
   return error;
 }
 
-Error read_idx_grid_inclusive(const IdxFile& idx_file, int field, int time,
-                int hz_level, IN_OUT Grid* grid)
+Error read_idx_grid_inclusive(
+  const IdxFile& idx_file, int field, int time, int hz_level, IN_OUT Grid* grid)
 {
   grid->type = idx_file.fields[field].type;
   Vector3i from, to, stride;

@@ -182,8 +182,9 @@ Vector3i hz_to_xyz(StringRef bit_string, uint64_t hz);
 /** Intersect a grid (given by from, to, stride) with a volume. Return only the
 part of the grid that are within the volume. Return true if there is at least
 one sample of the grid falls inside the volume. */
-bool intersect_grid(const Volume& vol, const Vector3i& from,
-                    const Vector3i& to, const Vector3i& stride,
-                    OUT Vector3i& output_from, OUT Vector3i& output_to);
+bool intersect_grid(
+  const Volume& vol, const Vector3i& from,
+  const Vector3i& to, const Vector3i& stride,
+  OUT Vector3i* output_from, OUT Vector3i* output_to);
 
 }
