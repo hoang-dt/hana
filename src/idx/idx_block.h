@@ -17,12 +17,16 @@ struct IdxBlockHeader {
 
     /** Get the offset of the idx block in the file (offset from the beginning of the file. */
     int64_t offset() const;
+    void set_offset(int64_t);
     /** Get the size of the idx block (not the size of the header). */
     uint32_t bytes() const;
+    void set_bytes(uint32_t);
     /** Get the type of compression used for the idx block. */
     Compression compression() const;
+    void set_compression(Compression);
     /** Get whether the samples in the block are in Hz or row-major order. */
     Format format() const;
+    void set_format(Format);
     /** Swap the byte order in the header (big endian to little endian and vice versa). */
     void swap_bytes();
 };

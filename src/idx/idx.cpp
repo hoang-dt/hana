@@ -265,18 +265,14 @@ Error read_idx_grid(
         continue; // these are not critical errors (a block may not be saved yet)
       }
       if (block.compression == Compression::Zip) {
-        mutex.lock();
-        MemBlockChar dst = freelist.allocate(block_size);
-        mutex.unlock();
+        mutex.lock(); MemBlockChar dst = freelist.allocate(block_size); mutex.unlock();
         uLong dest_len = static_cast<uLong>(dst.bytes);
         Bytef* dest = (Bytef*)dst.ptr;
         Bytef* src = (Byte*)block.data.ptr;
         uncompress(dest, &dest_len, src, static_cast<uLong>(block.data.bytes));
         std::swap(block.data, dst);
         block.bytes = block.data.bytes;
-        mutex.lock();
-        freelist.deallocate(dst);
-        mutex.unlock();
+        mutex.lock(); freelist.deallocate(dst); mutex.unlock();
       }
       else if (block.compression != Compression::None) {
         error = Error::CompressionUnsupported;

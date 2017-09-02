@@ -218,9 +218,7 @@ Error read_idx_block(
   block->type = idx_file.fields[field].type;
 
   // read the block's actual data
-  mutex.lock();
-  block->data = alloc.allocate(block->bytes);
-  mutex.unlock();
+  mutex.lock(); block->data = alloc.allocate(block->bytes); mutex.unlock();
   fseek(*file, block_offset, SEEK_SET);
   if (fread(block->data.ptr, block->bytes, 1, *file) != 1) {
     return Error::BlockReadFailed; // critical error
@@ -228,6 +226,74 @@ Error read_idx_block(
 
   return Error::NoError;
 }
+
+///** Read an IDX block out of a file. Beside returning the data in the block, this
+//function returns the HZ index of the last first block in a file read, as well as
+//the last file read. This is so that the next call to the function does not open
+//the same file. The file is returned so that after the last call, the caller can
+//close the last file opened. */
+//// TODO: refactor similar code out of this function and the other one
+//Error read_idx_block(
+//  const IdxFile& idx_file, int field, int time, bool read_header,
+//  IN_OUT uint64_t* last_first_block, IN_OUT FILE** file,
+//  OUT IdxBlockHeader* block_header, IN_OUT IdxBlock* block, Allocator& alloc)
+//{
+//  HANA_ASSERT(file != nullptr);
+//  HANA_ASSERT(last_first_block != nullptr);
+//  HANA_ASSERT(block_header != nullptr);
+//  HANA_ASSERT(block != nullptr);
+//
+//  // block index is the rank of this block (0th block, 1st block, 2nd,...)
+//  uint64_t first_block = 0;
+//  int block_in_file = 0;
+//  get_first_block_in_file(
+//    block->hz_address, idx_file.bits_per_block, idx_file.blocks_per_file, &first_block, &block_in_file);
+//  char bin_path[512]; // path to the binary file that stores the block
+//  get_file_name_from_hz(idx_file, time, first_block, STR_REF(bin_path));
+//  if (*last_first_block != first_block) { // open a new file
+//    *last_first_block = first_block;
+//    if (*file) {
+//      fclose(*file);
+//    }
+//    if (read_header) {
+//      Error err = read_one_block_header(
+//        file, bin_path, field, idx_file.blocks_per_file, block_in_file, block_header);
+//      if (err.code != Error::NoError) {
+//        return err;
+//      }
+//    }
+//  }
+//
+//  if (*file == nullptr) {
+//    Error err;
+//    err.code = Error::FileNotFound;
+//    return err;
+//  }
+//
+//  block_header->swap_bytes();
+//  int64_t block_offset = block_header->offset();
+//  block->bytes = block_header->bytes();
+//  if (block_offset == 0 || block->bytes == 0) {
+//    return Error::BlockNotFound; // not a critical error
+//  }
+//  block->compression = block_header->compression();
+//  HANA_ASSERT(block->compression != Compression::Invalid);
+//  if (block->compression == Compression::Invalid) {
+//    return Error::InvalidCompression; // critical error
+//  }
+//  block->format = block_header->format();
+//  block->type = idx_file.fields[field].type;
+//
+//  // read the block's actual data
+//  mutex.lock(); block->data = alloc.allocate(block->bytes); mutex.unlock();
+//  fseek(*file, block_offset, SEEK_SET);
+//  if (fread(block->data.ptr, block->bytes, 1, *file) != 1) {
+//    return Error::BlockReadFailed; // critical error
+//  }
+//
+//  return Error::NoError;
+//}
+//
 
 /** Given a binary file, read all the block headers from the file. */
 Error read_all_block_headers(

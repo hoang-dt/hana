@@ -3,6 +3,7 @@
 This file defines useful macros.
 */
 
+//TODO: add FORCE_INLINE
 #define ARRAY_SIZE(x) sizeof(x) / sizeof(*(x))
 #define COPY_ARRAY(dst, src) \
     HANA_ASSERT(ARRAY_SIZE(src) == ARRAY_SIZE(dst)); \

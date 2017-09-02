@@ -13,10 +13,6 @@ namespace hana {
   void get_block_addresses(
     const IdxFile& idx_file, const Volume& vol, int hz_level, OUT Array<IdxBlock>* idx_blocks);
 
-  void get_first_block_in_file(
-    uint64_t block, int bits_per_block, int blocks_per_file,
-    OUT uint64_t* first_block, OUT int* block_in_file);
-
   Error read_all_block_headers(
     IN_OUT FILE** file, const char* bin_path, int field, int blocks_per_file,
     IN_OUT Array<IdxBlockHeader>* headers);

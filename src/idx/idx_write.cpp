@@ -41,6 +41,9 @@ Error write_idx_block(
   // write the actual data
   IdxBlockHeader header;
   if (read) {
+    //read_idx_block(
+    //  idx_file, field, time,
+    //);
     Error err = read_one_block_header(file, bin_path, field, bpf, block_in_file, &header);
     if (err.code != Error::NoError && err.code != Error::HeaderNotFound) {
       return err;
@@ -48,7 +51,7 @@ Error write_idx_block(
     if (header.offset() == 0) { // the block has not been written yet, write to the end of the file
       fseek(*file, 0, SEEK_END);
     }
-    else {
+    else { // the block exists on file, but probably not complete, we will rewrite it
       fseek(*file, header.offset(), SEEK_SET);
     }
   }
@@ -65,7 +68,7 @@ Error write_idx_block(
 /* Write an IDX grid at one particular HZ level.
 TODO: this function overlaps quite a bit with read_idx_grid. */
 Error write_idx_grid(
-  const IdxFile& idx_file, int field, int time, int hz_level, const Grid& grid, bool read)
+  const IdxFile& idx_file, int field, int time, int hz_level, const Grid& grid)
 {
   // check the inputs
   if (!verify_idx_file(idx_file))
@@ -91,8 +94,9 @@ Error write_idx_grid(
 
   size_t samples_per_block = (size_t)pow2[idx_file.bits_per_block];
   size_t block_size = idx_file.fields[field].type.bytes() * samples_per_block;
-  if (freelist.max_size() != block_size)
+  if (freelist.max_size() != block_size) {
     freelist.set_min_max_size(block_size / 2, std::max(sizeof(void*), block_size));
+  }
 
   FILE* file = nullptr;
   Error error = Error::NoError;
@@ -108,29 +112,15 @@ Error write_idx_grid(
     int thread_count = 0;
     for (size_t j = 0; j < num_thread_max && i + j < idx_blocks.size(); ++j) {
       IdxBlock& block = idx_blocks[i + j];
-      Error err = Error::NoError;
-      if (read) {
-        uint64_t first_block = 0;
-        int block_in_file = 0;
-        get_first_block_in_file(
-          block.hz_address, idx_file.bits_per_block, idx_file.blocks_per_file,
-          &first_block, &block_in_file);
-        char bin_path[512];
-        get_file_name_from_hz(idx_file, time, first_block, STR_REF(bin_path));
-        err = read_all_block_headers(
-          &file, bin_path, field, idx_file.blocks_per_file, &block_headers);
-        if (err.code != Error::NoError) {
-          err = read_idx_block(
-            idx_file, field, time, false, &last_first_block, &file, &block_headers, &block, freelist);
-        }
-      }
-      if (err == Error::HeaderNotFound) { // write the headers
+      Error err = read_idx_block(
+        idx_file, field, time, true, &last_first_block, &file, &block_headers, &block, freelist);
+      if (err == Error::HeaderNotFound) { // populate the header
         // tODO
       }
-
-      if (err == Error::InvalidCompression || err == Error::BlockReadFailed)
+      else if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
         return err; // critical errors
-      if (err == Error::BlockNotFound || err == Error::FileNotFound) {
+      }
+      else if (err == Error::BlockNotFound || err == Error::FileNotFound) {
         // TODO: handle compression
         block.data = freelist.allocate(block_size);
       }
