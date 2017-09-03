@@ -271,7 +271,7 @@ Error read_idx_grid(
         Bytef* src = (Byte*)block.data.ptr;
         uncompress(dest, &dest_len, src, static_cast<uLong>(block.data.bytes));
         std::swap(block.data, dst);
-        block.bytes = block.data.bytes;
+        block.bytes = static_cast<uint32_t>(block.data.bytes);
         mutex.lock(); freelist.deallocate(dst); mutex.unlock();
       }
       else if (block.compression != Compression::None) {

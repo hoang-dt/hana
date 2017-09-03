@@ -43,7 +43,7 @@ struct IdxBlock {
     /** hz address of the first sample in the block. */
     uint64_t hz_address = 0;
     /** Size of the block in bytes. */
-    uint64_t bytes = 0;
+    uint32_t bytes = 0;
     /** Type of each sample in the block (e.g. UInt8/UInt16, etc). */
     IdxType type;
     /** The hz level to which the block belongs. If the block contains multiple

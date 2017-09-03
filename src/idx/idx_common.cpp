@@ -165,6 +165,7 @@ function returns the HZ index of the last first block in a file read, as well as
 the last file read. This is so that the next call to the function does not open
 the same file. The file is returned so that after the last call, the caller can
 close the last file opened. */
+// TOOD: remove the read_headers param
 Error read_idx_block(
   const IdxFile& idx_file, int field, int time, bool read_headers,
   IN_OUT uint64_t* last_first_block, IN_OUT FILE** file,
@@ -301,7 +302,7 @@ Error read_all_block_headers(
   OUT Array<IdxBlockHeader>* headers)
 {
   HANA_ASSERT(file != nullptr);
-  *file = fopen(bin_path, "rb");
+  *file = fopen(bin_path, "rb+");
   if (!*file) {
     return Error::FileNotFound;
   }
@@ -309,25 +310,6 @@ Error read_all_block_headers(
     return Error::HeaderNotFound;
   }
   if (fread(&(*headers)[0], sizeof(IdxBlockHeader), blocks_per_file, *file) != blocks_per_file) {
-    return Error::HeaderNotFound;
-  }
-  return Error::NoError;
-}
-
-/** Read one block header from a given file. */
-Error read_one_block_header(
-  IN_OUT FILE** file, const char* bin_path, int field, int blocks_per_file, uint64_t block_in_file,
-  OUT IdxBlockHeader* header)
-{
-  HANA_ASSERT(file != nullptr);
-  *file = fopen(bin_path, "rb");
-  if (!*file) {
-    return Error::FileNotFound;
-  }
-  if (fseek(*file, sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * (blocks_per_file * field + block_in_file), SEEK_SET)) {
-    return Error::HeaderNotFound;
-  }
-  if (fread(header, sizeof(IdxBlockHeader), 1, *file) != 1) {
     return Error::HeaderNotFound;
   }
   return Error::NoError;

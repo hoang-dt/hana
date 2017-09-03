@@ -13,6 +13,7 @@ struct Error {
         ParsingError,
         BlockNotFound,
         HeaderNotFound,
+        HeaderWriteFailed,
         BlockReadFailed,
         BlockWriteFailed,
         CompressionUnsupported,
