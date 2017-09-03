@@ -59,19 +59,13 @@ TODO: this function overlaps quite a bit with read_idx_grid. */
 Error write_idx_grid(
   const IdxFile& idx_file, int field, int time, int hz_level, const Grid& grid)
 {
-  // check the inputs
-  if (!verify_idx_file(idx_file))
-    return Error::InvalidIdxFile;
-  if (field < 0 || field > idx_file.num_fields)
-    return Error::FieldNotFound;
-  if (time < idx_file.time.begin || time > idx_file.time.end)
-    return Error::TimeStepNotFound;
-  if (hz_level < 0 || hz_level > idx_file.get_max_hz_level())
-    return Error::InvalidHzLevel;
-  if (!grid.extent.is_valid())
-    return Error::InvalidVolume;
-  if (!grid.extent.is_inside(idx_file.box))
-    return Error::VolumeTooBig;
+  /* check the inputs */
+  if (!verify_idx_file(idx_file)) { return Error::InvalidIdxFile; }
+  if (field < 0 || field > idx_file.num_fields) { return Error::FieldNotFound; }
+  if (time < idx_file.time.begin || time > idx_file.time.end) { return Error::TimeStepNotFound; }
+  if (hz_level < 0 || hz_level > idx_file.get_max_hz_level()) { return Error::InvalidHzLevel; }
+  if (!grid.extent.is_valid()) { return Error::InvalidVolume; }
+  if (!grid.extent.is_inside(idx_file.box)) { return Error::VolumeTooBig; }
   HANA_ASSERT(grid.data.ptr);
 
   /* figure out which blocks touch this grid */

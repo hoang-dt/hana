@@ -111,16 +111,16 @@ void primitive_type_to_string(IdxPrimitiveType type, OUT StringRef str)
 {
   HANA_ASSERT(str.size >= 8);
   switch (type) {
-  case IdxPrimitiveType::UInt8  : sprintf(str.ptr, "%s", "uint8"  );
-  case IdxPrimitiveType::UInt16 : sprintf(str.ptr, "%s", "uint16" );
-  case IdxPrimitiveType::UInt32 : sprintf(str.ptr, "%s", "uint32" );
-  case IdxPrimitiveType::UInt64 : sprintf(str.ptr, "%s", "uint64" );
-  case IdxPrimitiveType::Int8   : sprintf(str.ptr, "%s", "int8"   );
-  case IdxPrimitiveType::Int16  : sprintf(str.ptr, "%s", "int16"  );
-  case IdxPrimitiveType::Int32  : sprintf(str.ptr, "%s", "int32"  );
-  case IdxPrimitiveType::Int64  : sprintf(str.ptr, "%s", "int64"  );
-  case IdxPrimitiveType::Float32: sprintf(str.ptr, "%s", "float32");
-  case IdxPrimitiveType::Float64: sprintf(str.ptr, "%s", "float64");
+  case IdxPrimitiveType::UInt8  : sprintf(str.ptr, "%s", "uint8"  ); break;
+  case IdxPrimitiveType::UInt16 : sprintf(str.ptr, "%s", "uint16" ); break;
+  case IdxPrimitiveType::UInt32 : sprintf(str.ptr, "%s", "uint32" ); break;
+  case IdxPrimitiveType::UInt64 : sprintf(str.ptr, "%s", "uint64" ); break;
+  case IdxPrimitiveType::Int8   : sprintf(str.ptr, "%s", "int8"   ); break;
+  case IdxPrimitiveType::Int16  : sprintf(str.ptr, "%s", "int16"  ); break;
+  case IdxPrimitiveType::Int32  : sprintf(str.ptr, "%s", "int32"  ); break;
+  case IdxPrimitiveType::Int64  : sprintf(str.ptr, "%s", "int64"  ); break;
+  case IdxPrimitiveType::Float32: sprintf(str.ptr, "%s", "float32"); break;
+  case IdxPrimitiveType::Float64: sprintf(str.ptr, "%s", "float64"); break;
   };
 }
 
@@ -225,7 +225,7 @@ Error read_idx_file(std::istream& input, IdxFile* idx_file)
     }
     else if (STRING_EQUAL(line, bits_)) { // bits
       input >> idx_file->bits;
-      idx_file->bit_string = StringRef(idx_file->bits + 1);
+      idx_file->bit_string = StringRef(idx_file->bits + 1); // ignoring the starting 'V' character
       input.ignore();
     }
     else if (STRING_EQUAL(line, bitsperblock_)) { // bitsperblock
@@ -602,7 +602,7 @@ Note that the exact type of each field can be changed later if needed. The same
 goes for the exact name of each field. By default, the fields are named data0,
 data1, etc. */
 void create_idx_file(
-  const Vector3i& dims, int num_fields, const IdxType& type, int num_time_steps, OUT IdxFile* idx_file)
+  const Vector3i& dims, int num_fields, const char* type, int num_time_steps, OUT IdxFile* idx_file)
 {
   HANA_ASSERT(dims.x > 0 && dims.y > 0 && dims.z > 0);
   HANA_ASSERT(num_fields > 0 && num_fields <= IdxFile::num_fields_max);
@@ -622,7 +622,9 @@ void create_idx_file(
     char temp[16];
     sprintf(temp, "data%d", i);
     field.set_name(temp);
-    field.type = type;
+    StringRef type_str_ref(type);
+    IdxType idx_type = string_to_type(type_str_ref); // TODO: check for type error
+    field.type = idx_type;
     field.format = Format::RowMajor;
     field.compression = Compression::None;
   }
@@ -640,9 +642,6 @@ void create_idx_file(
   int num_blocks = static_cast<int>(total_samples / samples_per_block);
   // by default, use 256 blocks per file
   idx_file->blocks_per_file = min(256, num_blocks);
-  //uint64_t samples_per_file = (uint64_t)idx_file->blocks_per_file * samples_per_block;
-  //int num_files = static_cast<int>(total_samples / (samples_per_file));
-
   idx_file->filename_template.num_hex_bits[0] = log_int(16, total_samples);
 }
 
@@ -662,20 +661,23 @@ Error write_idx_file(std::ostream& output, const IdxFile& idx_file)
     primitive_type_to_string(idx_file.fields[i].type.primitive_type, STR_REF(buf));
     output << idx_file.fields[i].name << " " << buf;
     if (idx_file.fields[i].type.num_components > 1) {
-      output << "[" << idx_file.fields[i].type.num_components << "] ";
+      output << "[" << idx_file.fields[i].type.num_components << "]";
     }
-    output << "format(1)\n";
+    output << " format(1)\n";
   }
-  output << "(bits)\n" << idx_file.bits << "\n";
+  output << "(bits)\nV" << idx_file.bits << "\n";
   output << "(bitsperblock)\n" << idx_file.bits_per_block << "\n";
   output << "(blocksperfile)\n" << idx_file.blocks_per_file << "\n";
   output << "(interleave block)\n" << idx_file.interleave_block << "\n";
   output << "(time)\n" << idx_file.time.begin << " " << idx_file.time.end << " " << idx_file.time.template_ << "\n";
-  output << "(filename_template)" << "./" << idx_file.filename_template.head;
-  for (int i = 0; i < 64 && idx_file.filename_template.num_hex_bits[i] != 0; ++i) {
-    output << "/0" << idx_file.filename_template.num_hex_bits[i] << "x";
+  output << "(filename_template)\n" << ".";
+  if (idx_file.filename_template.head.num_components() > 0) {
+    output << "/" << idx_file.filename_template.head;
   }
-  output << "." << idx_file.filename_template.ext << "\n";
+  for (int i = 0; i < 64 && idx_file.filename_template.num_hex_bits[i] != 0; ++i) {
+    output << "/%0" << idx_file.filename_template.num_hex_bits[i] << "x";
+  }
+  output << idx_file.filename_template.ext << "\n";
   return Error::NoError; // TODO: check for real errors
 }
 

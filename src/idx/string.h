@@ -17,39 +17,39 @@ character in the array, use the StringRef(const char* p) constructor.
 To create a StringRef that encapsulates a literal string (e.g. "Hello"), use the
 STR_REF macro. */
 struct StringRef {
-    union {
-        char* ptr = nullptr;
-        const char* cptr;
-    };
+  union {
+      char* ptr = nullptr;
+      const char* cptr;
+  };
 
-    size_t size = 0;
+  size_t size = 0;
 
-    StringRef() : ptr(nullptr), size(0) {}
-    StringRef(char* p, size_t s) : ptr(p), size(s) {}
-    StringRef(const char* p, size_t s) : cptr(p), size(s) {}
-    explicit StringRef(const char* p);
-    char& operator[](size_t i) { HANA_ASSERT(i < size); return ptr[i]; }
-    char operator[](size_t i) const { HANA_ASSERT(i < size); return ptr[i]; }
-    char* begin() { return ptr; }
-    char* end() { return ptr + size; }
-    const char* begin() const { return cptr; }
-    const char* end() const { return cptr + size; }
-    operator bool() const { return ptr != nullptr; }
+  StringRef() : ptr(nullptr), size(0) {}
+  StringRef(char* p, size_t s) : ptr(p), size(s) {}
+  StringRef(const char* p, size_t s) : cptr(p), size(s) {}
+  explicit StringRef(const char* p);
+  char& operator[](size_t i) { HANA_ASSERT(i < size); return ptr[i]; }
+  char operator[](size_t i) const { HANA_ASSERT(i < size); return ptr[i]; }
+  char* begin() { return ptr; }
+  char* end() { return ptr + size; }
+  const char* begin() const { return cptr; }
+  const char* end() const { return cptr + size; }
+  operator bool() const { return ptr != nullptr; }
 };
 
 /** Tokenize a string. */
 // TODO: make the delimiter a string?
 class StringTokenizer {
 private:
-    StringRef str_;
-    char delim_ = ' ';
-    size_t pos_ = 0;
+  StringRef str_;
+  char delim_ = ' ';
+  size_t pos_ = 0;
 
 public:
-    StringTokenizer(StringRef input, char delim = ' ');
-    StringTokenizer(const char* input, char delim = ' ');
-    StringRef next();
-    void reset();
+  StringTokenizer(StringRef input, char delim = ' ');
+  StringTokenizer(const char* input, char delim = ' ');
+  StringRef next();
+  void reset();
 };
 
 std::ostream& operator<<(std::ostream& os, const StringRef& str);

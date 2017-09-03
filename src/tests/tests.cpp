@@ -665,11 +665,22 @@ void test_get_block_grid()
     HANA_ASSERT(stride.x == 4 && stride.y == 2);
 }
 
+void test_write_idx()
+{
+  Vector3i dims(256, 256, 256);
+  IdxFile idx_file;
+  create_idx_file(dims, 1, "int32", 1, &idx_file);
+  std::ofstream idx_stream("test-256x256x256-int32.idx");
+  write_idx_file(idx_stream, idx_file);
+}
+
 int main()
 {
     using namespace hana;
     using namespace std::chrono;
     high_resolution_clock::time_point t1 = high_resolution_clock::now();
+    test_write_idx();
+    return 0;
     test_get_block_grid();
     test_read_idx_grid_1();
     test_read_idx_grid_2();

@@ -68,14 +68,14 @@ struct IdxType {
 	int num_components = 0;
 	int bytes() const {
 		switch (primitive_type) {
-			case IdxPrimitiveType::UInt8: return 1 * num_components;
-			case IdxPrimitiveType::UInt16: return 2 * num_components;
-			case IdxPrimitiveType::UInt32: return 4 * num_components;
-			case IdxPrimitiveType::UInt64: return 8 * num_components;
-			case IdxPrimitiveType::Int8: return 1 * num_components;
-			case IdxPrimitiveType::Int16: return 2 * num_components;
-			case IdxPrimitiveType::Int32: return 4 * num_components;
-			case IdxPrimitiveType::Int64: return 8 * num_components;
+			case IdxPrimitiveType::UInt8  : return 1 * num_components;
+			case IdxPrimitiveType::UInt16 : return 2 * num_components;
+			case IdxPrimitiveType::UInt32 : return 4 * num_components;
+			case IdxPrimitiveType::UInt64 : return 8 * num_components;
+			case IdxPrimitiveType::Int8   : return 1 * num_components;
+			case IdxPrimitiveType::Int16  : return 2 * num_components;
+			case IdxPrimitiveType::Int32  : return 4 * num_components;
+			case IdxPrimitiveType::Int64  : return 8 * num_components;
 			case IdxPrimitiveType::Float32: return 4 * num_components;
 			case IdxPrimitiveType::Float64: return 8 * num_components;
 			case IdxPrimitiveType::Invalid: return 0;

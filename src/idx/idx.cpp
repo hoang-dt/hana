@@ -296,7 +296,7 @@ Error read_idx_grid(
             b.data.bytes = b.bytes;
             b.from = b.to = Vector3i(0, 0, 0);
             b.stride = get_intra_level_strides(idx_file.bit_string, b.hz_level);
-            uint64_t old_bytes = 0;
+            uint32_t old_bytes = 0;
             uint64_t old_hz = 1;
             while (b.bytes < block.bytes && b.hz_level <= hz_level) {
               // each iteration corresponds to one hz level,
