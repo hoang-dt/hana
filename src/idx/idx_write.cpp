@@ -8,6 +8,7 @@
 #include "utils.h"
 #include <cstdint>
 #include <thread>
+#include <iostream>
 
 namespace hana {
 
@@ -94,10 +95,12 @@ Error write_idx_grid(
     int thread_count = 0;
     for (size_t j = 0; j < num_thread_max && i + j < idx_blocks.size(); ++j) {
       IdxBlock& block = idx_blocks[i + j];
+      std::cout << "block " << i+j << "\n";
       uint64_t first_block = 0;
       int block_in_file = 0;
       get_first_block_in_file(
         block.hz_address, idx_file.bits_per_block, idx_file.blocks_per_file, &first_block, &block_in_file);
+      std::cout << "block in file = " << block_in_file << "\n";
       Error err = read_idx_block(
         idx_file, field, time, true, &last_first_block, &file, &block_headers, &block, freelist);
       IdxBlockHeader& header = block_headers[block_in_file];
@@ -109,7 +112,6 @@ Error write_idx_grid(
           char bin_path[PATH_MAX]; // path to the binary file that stores the block
           StringRef bin_path_str(STR_REF(bin_path));
           get_file_name_from_hz(idx_file, time, first_block, bin_path_str);
-          char bin_dir[PATH_MAX];
           size_t last_slash = find_last(bin_path_str, STR_REF("/"));
           StringRef bin_dir_str = sub_string(bin_path_str, 0, last_slash);
           if (!dir_exists(bin_dir_str)) {
@@ -119,7 +121,7 @@ Error write_idx_grid(
           file = fopen(bin_path, "rb+");
         }
         block.data = freelist.allocate(block_size);
-        block.bytes = block_size;
+        block.bytes = static_cast<uint32_t>(block_size);
         block.compression = Compression::None;
         block.type = idx_file.fields[field].type;
         header.set_bytes(block.bytes);
@@ -129,6 +131,7 @@ Error write_idx_grid(
         size_t file_size = ftell(file);
         size_t offset = std::max(header_size, file_size);
         header.set_offset(static_cast<int64_t>(offset));
+        std::cout << "write: offset = " << header.offset() << "\n";
         header.set_compression(block.compression); // TODO
       }
       else if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
@@ -146,8 +149,13 @@ Error write_idx_grid(
       }
 
       /* if i am the last block in the file, write all the block headers for the file */
+      for (int k = 0; k< 16; ++k) {
+        auto t = block_headers[k].offset();
+        std::cout << t << "\n";
+      }
       if (block_in_file - first_block + 1 == idx_file.blocks_per_file) {
-        fseek(file, sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * idx_file.blocks_per_file * field, SEEK_SET);
+        size_t offset = sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * idx_file.blocks_per_file * field;
+        fseek(file, offset, SEEK_SET);
         if (fwrite(&block_headers[0], sizeof(IdxBlockHeader), idx_file.blocks_per_file, file) != idx_file.blocks_per_file) {
           return Error::HeaderWriteFailed;
         }
@@ -163,30 +171,13 @@ Error write_idx_grid(
   HANA_ASSERT(grid.data.ptr != nullptr);
   int min_hz = idx_file.get_min_hz_level();
   int max_hz = idx_file.get_max_hz_level();
-  for (int l = min_hz; l <= max_hz; ++l) {
-    Error err = write_idx_grid(idx_file, field, time, l, grid);
-    if (err.code != Error::NoError) {
-      return err;
-    }
-  }
-  return Error::NoError;
-}
-
-Error write_idx_grid_inclusive(
-  const IdxFile& idx_file, int field, int time, int hz_level, IN_OUT Grid* grid)
-{
-  grid->type = idx_file.fields[field].type;
-  Vector3i from, to, stride;
-  idx_file.get_grid_inclusive(grid->extent, hz_level, &from, &to, &stride);
-  Error err = read_idx_grid(
-    idx_file, field, time, idx_file.get_min_hz_level()-1, from, to, stride, grid);
+  Error err = write_idx_grid(idx_file, field, time, min_hz-1, grid);
   if (err.code != Error::NoError) {
     return err;
   }
-  int min_hz = idx_file.get_min_hz_level();
-  for (int l = min_hz; l <= hz_level; ++l) {
-    err = read_idx_grid(idx_file, field, time, l, from, to, stride, grid);
-    if (err.code!=Error::NoError && err.code!=Error::BlockNotFound && err.code!=Error::FileNotFound) {
+  for (int l = min_hz; l <= max_hz; ++l) {
+    err = write_idx_grid(idx_file, field, time, l, grid);
+    if (err.code != Error::NoError) {
       return err;
     }
   }

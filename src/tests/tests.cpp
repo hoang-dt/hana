@@ -684,6 +684,35 @@ void test_write_idx()
     p[i] = i;
   }
   write_idx_grid(idx_file, 0, 0, grid);
+
+  /* read back the idx file */
+  IdxFile idx_file_r;
+  Error error_r = read_idx_file(file_path, &idx_file_r);
+  if (error_r.code != Error::NoError) {
+    cout << "Error: " << error_r.get_error_msg() << "\n";
+    return;
+  }
+
+  int field_r = 0;
+  int time_r = idx_file_r.get_min_time_step();
+
+  Grid grid_r;
+  grid_r.extent = idx_file_r.get_logical_extent();
+  grid_r.data.bytes = idx_file_r.get_size_inclusive(grid_r.extent, field_r, hz_level);
+  grid_r.data.ptr = (char*)calloc(grid_r.data.bytes, 1);
+
+  Vector3i from_r, to_r, stride_r;
+  idx_file_r.get_grid_inclusive(grid_r.extent, hz_level, &from_r, &to_r, &stride_r);
+  Vector3i dim_r = (to_r - from_r) / stride_r + 1;
+  cout << "Resulting grid dim = " << dim_r.x << " x " << dim_r.y << " x " << dim_r.z << "\n";
+
+  error_r = read_idx_grid_inclusive(idx_file_r, field_r, time_r, hz_level, &grid);
+  deallocate_memory();
+
+  if (error_r.code != Error::NoError) {
+    cout << "Error: " << error_r.get_error_msg() << "\n";
+    return;
+  }
 }
 
 int main()

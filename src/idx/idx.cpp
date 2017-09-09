@@ -17,6 +17,8 @@
 #include <thread>
 #include <mutex>
 
+// TODO: eliminate global variables
+
 namespace hana {
 
 // We need exclusive access to the memory allocator for the blocks.
