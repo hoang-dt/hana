@@ -347,7 +347,7 @@ uint64_t IdxFile::get_size(const Volume& sub_vol, int field, int hz_level) const
   HANA_ASSERT(hz_level >= 0 && hz_level <= get_max_hz_level());
   HANA_ASSERT(sub_vol.is_inside(box));
   Vector3i from, to, stride;
-  get_grid(sub_vol, hz_level, from, to, stride);
+  get_grid(sub_vol, hz_level, &from, &to, &stride);
   Vector3u64 dims = (to - from) / stride + 1;
   return dims.x * dims.y * dims.z * fields[field].type.bytes();
 }
@@ -358,7 +358,7 @@ uint64_t IdxFile::get_size_inclusive(const Volume& sub_vol, int field, int hz_le
   HANA_ASSERT(hz_level >= 0 && hz_level <= get_max_hz_level());
   HANA_ASSERT(sub_vol.is_inside(box));
   Vector3i from, to, stride;
-  get_grid_inclusive(sub_vol, hz_level, from, to, stride);
+  get_grid_inclusive(sub_vol, hz_level, &from, &to, &stride);
   Vector3u64 dims = (to - from) / stride + 1;
   return dims.x * dims.y * dims.z * fields[field].type.bytes();
 }
@@ -378,37 +378,37 @@ uint64_t IdxFile::get_size_inclusive(int field, int hz_level) const
   return get_size_inclusive(box, field, hz_level);
 }
 
-bool IdxFile::get_grid(int hz_level, OUT Vector3i& from,
-             OUT Vector3i& to, OUT Vector3i& stride) const
+bool IdxFile::get_grid(
+  int hz_level, OUT Vector3i* from, OUT Vector3i* to, OUT Vector3i* stride) const
 {
   HANA_ASSERT(hz_level >= 0 && hz_level <= get_max_hz_level());
   return get_grid(box, hz_level, from, to, stride);
 }
 
-bool IdxFile::get_grid(const Volume& sub_vol, int hz_level,
-  OUT Vector3i& from, OUT Vector3i& to, OUT Vector3i& stride) const
+bool IdxFile::get_grid(
+  const Volume& sub_vol, int hz_level, OUT Vector3i* from, OUT Vector3i* to, OUT Vector3i* stride) const
 {
   HANA_ASSERT(sub_vol.is_valid() && sub_vol.is_inside(box));
   HANA_ASSERT(hz_level >= 0 && hz_level <= get_max_hz_level());
-  stride = get_intra_level_strides(bit_string, hz_level);
+  *stride = get_intra_level_strides(bit_string, hz_level);
   Vector3i start = get_first_coord(bit_string, hz_level);
   Vector3i end = get_last_coord(bit_string, hz_level);
-  return intersect_grid(sub_vol, start, end, stride, &from, &to);
+  return intersect_grid(sub_vol, start, end, *stride, from, to);
 }
 
-bool IdxFile::get_grid_inclusive(const Volume& sub_vol, int hz_level,
-  OUT Vector3i& from, OUT Vector3i& to, OUT Vector3i& stride) const
+bool IdxFile::get_grid_inclusive(
+  const Volume& sub_vol, int hz_level, OUT Vector3i* from, OUT Vector3i* to, OUT Vector3i* stride) const
 {
   HANA_ASSERT(sub_vol.is_valid() && sub_vol.is_inside(box));
   HANA_ASSERT(hz_level >= 0 && hz_level <= get_max_hz_level());
   Vector3i start = Vector3i(0, 0, 0);
   Vector3i end = get_last_coord(bit_string, hz_level);
-  stride = get_intra_level_strides(bit_string, hz_level + 1);
-  return intersect_grid(sub_vol, start, end, stride, &from, &to);
+  *stride = get_intra_level_strides(bit_string, hz_level + 1);
+  return intersect_grid(sub_vol, start, end, *stride, from, to);
 }
 
-bool IdxFile::get_grid_inclusive(int hz_level, OUT Vector3i& from,
-  OUT Vector3i& to, OUT Vector3i& stride) const
+bool IdxFile::get_grid_inclusive(
+  int hz_level, OUT Vector3i* from, OUT Vector3i* to, OUT Vector3i* stride) const
 {
   return get_grid_inclusive(box, hz_level, from, to, stride);
 }
@@ -421,7 +421,7 @@ Vector3i IdxFile::get_dims(int hz_level) const
 Vector3i IdxFile::get_dims(const Volume& sub_vol, int hz_level) const
 {
   Vector3i from, to, stride;
-  get_grid(sub_vol, hz_level, from, to, stride);
+  get_grid(sub_vol, hz_level, &from, &to, &stride);
   return (to - from) / stride + 1;
 }
 
@@ -433,7 +433,7 @@ Vector3i IdxFile::get_dims_inclusive(int hz_level) const
 Vector3i IdxFile::get_dims_inclusive(const Volume& sub_vol, int hz_level) const
 {
   Vector3i from, to, stride;
-  get_grid_inclusive(sub_vol, hz_level, from, to, stride);
+  get_grid_inclusive(sub_vol, hz_level, &from, &to, &stride);
   return (to - from) / stride + 1;
 }
 

@@ -94,7 +94,6 @@ Error write_idx_grid(
     int thread_count = 0;
     for (size_t j = 0; j < num_thread_max && i + j < idx_blocks.size(); ++j) {
       IdxBlock& block = idx_blocks[i + j];
-      block.bytes = static_cast<uint32_t>(block_size); // TODO: compression (also skip samples that are not in volume extent)
       uint64_t first_block = 0;
       int block_in_file = 0;
       get_first_block_in_file(
@@ -105,15 +104,24 @@ Error write_idx_grid(
       if (err == Error::FileNotFound || err == Error::HeaderNotFound || err == Error::BlockNotFound) {
         if (err == Error::FileNotFound) {
           if (file) {
-            fclose(file);
+            fclose(file); // TODO: WHY
           }
-          char bin_path[512]; // path to the binary file that stores the block
-          get_file_name_from_hz(idx_file, time, first_block, STR_REF(bin_path));
-          // TODO: check for file/directory exists
+          char bin_path[PATH_MAX]; // path to the binary file that stores the block
+          StringRef bin_path_str(STR_REF(bin_path));
+          get_file_name_from_hz(idx_file, time, first_block, bin_path_str);
+          char bin_dir[PATH_MAX];
+          size_t last_slash = find_last(bin_path_str, STR_REF("/"));
+          StringRef bin_dir_str = sub_string(bin_path_str, 0, last_slash);
+          if (!dir_exists(bin_dir_str)) {
+            create_full_dir(bin_dir_str);
+          }
           file = fopen(bin_path, "ab"); fclose(file); // create the file it it does not exist
           file = fopen(bin_path, "rb+");
         }
         block.data = freelist.allocate(block_size);
+        block.bytes = block_size;
+        block.compression = Compression::None;
+        block.type = idx_file.fields[field].type;
         header.set_bytes(block.bytes);
         header.set_format(Format::RowMajor);
         size_t header_size = sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * idx_file.blocks_per_file * idx_file.num_fields;
@@ -121,8 +129,7 @@ Error write_idx_grid(
         size_t file_size = ftell(file);
         size_t offset = std::max(header_size, file_size);
         header.set_offset(static_cast<int64_t>(offset));
-        header.set_compression(Compression::None); // TODO
-        block.data = freelist.allocate(block_size);
+        header.set_compression(block.compression); // TODO
       }
       else if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
         return err; // critical errors
@@ -159,6 +166,27 @@ Error write_idx_grid(
   for (int l = min_hz; l <= max_hz; ++l) {
     Error err = write_idx_grid(idx_file, field, time, l, grid);
     if (err.code != Error::NoError) {
+      return err;
+    }
+  }
+  return Error::NoError;
+}
+
+Error write_idx_grid_inclusive(
+  const IdxFile& idx_file, int field, int time, int hz_level, IN_OUT Grid* grid)
+{
+  grid->type = idx_file.fields[field].type;
+  Vector3i from, to, stride;
+  idx_file.get_grid_inclusive(grid->extent, hz_level, &from, &to, &stride);
+  Error err = read_idx_grid(
+    idx_file, field, time, idx_file.get_min_hz_level()-1, from, to, stride, grid);
+  if (err.code != Error::NoError) {
+    return err;
+  }
+  int min_hz = idx_file.get_min_hz_level();
+  for (int l = min_hz; l <= hz_level; ++l) {
+    err = read_idx_grid(idx_file, field, time, l, from, to, stride, grid);
+    if (err.code!=Error::NoError && err.code!=Error::BlockNotFound && err.code!=Error::FileNotFound) {
       return err;
     }
   }

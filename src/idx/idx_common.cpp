@@ -123,10 +123,9 @@ void get_block_addresses(
         IdxBlock block;
         block.hz_address = hz;
         block.from = Vector3i(x, y, z);
-        if (first_block) { // for the first block, we combine all the
-          // hz levels in the block (from 0 to min hz level - 1), and
-          // the resulting grid has the same strides as those of the
-          // next hz level.
+        if (first_block) { // for the first block, we combine all the hz levels in the block
+          // (from 0 to min hz level - 1), and the resulting grid has the same strides as those of
+          // the next hz level.
           block.stride = get_intra_level_strides(bit_string, hz_level + 1);
         }
         else {

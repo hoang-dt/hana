@@ -164,10 +164,8 @@ bool is_relative_path(StringRef path)
 #include <windows.h>
 bool create_full_dir(StringRef path)
 {
-  char path_copy[MAX_PATH];
-  strncpy(path_copy, path.cptr, MAX_PATH-1);
-  path_copy[MAX_PATH-1] = '\0';
-  //mode_t nMode = 0733; // UNIX style permissions
+  char path_copy[PATH_MAX];
+  copy(STR_REF(path_copy), path, true);
   int error = 0;
 #if defined(_WIN32)
   char* p = path_copy;
@@ -178,7 +176,8 @@ bool create_full_dir(StringRef path)
   }
   error = _mkdir(path_copy);
 #else
-  error = mkdir(path_copy.c_str(), nMode); // can be used on non-Windows
+  mode_t nMode = 0733; // UNIX style permissions
+  error = mkdir(path_copy, nMode); // can be used on non-Windows
 #endif
   return (error == 0);
 }
@@ -186,7 +185,9 @@ bool create_full_dir(StringRef path)
 #if defined(_WIN32)
 #include <io.h>
 bool dir_exists(StringRef path) {
-  return _access(path.cptr, 0) == 0;
+  char path_copy[PATH_MAX];
+  copy(STR_REF(path_copy), path, true);
+  return _access(path_copy, 0) == 0;
 }
 #else
 #include <unistd.h>

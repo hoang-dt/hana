@@ -148,16 +148,16 @@ struct IdxFile : public detail::IdxFileBase {
 
   /** Given an hz level, compute the grid corresponding to this hz level. */
   bool get_grid(
-    int hz_level, OUT Vector3i& from, OUT Vector3i& to, OUT Vector3i& stride) const;
+    int hz_level, OUT Vector3i* from, OUT Vector3i* to, OUT Vector3i* stride) const;
   /** Given an hz level and a sub-volume, compute the grid in this hz level that
   intersects with the sub-volume. Return false if the resulting grid has no
   samples. */
   bool get_grid(
-    const Volume& sub_vol, int hz_level, OUT Vector3i& from, OUT Vector3i& to, OUT Vector3i& stride) const;
+    const Volume& sub_vol, int hz_level, OUT Vector3i* from, OUT Vector3i* to, OUT Vector3i* stride) const;
   bool get_grid_inclusive(
-    int hz_level, OUT Vector3i& from, OUT Vector3i& to, OUT Vector3i& stride) const;
+    int hz_level, OUT Vector3i* from, OUT Vector3i* to, OUT Vector3i* stride) const;
   bool get_grid_inclusive(
-    const Volume& sub_vol, int hz_level, OUT Vector3i& from, OUT Vector3i& to, OUT Vector3i& stride) const;
+    const Volume& sub_vol, int hz_level, OUT Vector3i* from, OUT Vector3i* to, OUT Vector3i* stride) const;
 
   Vector3i get_dims(int hz_level) const;
   Vector3i get_dims(const Volume& sub_vol, int hz_level) const;

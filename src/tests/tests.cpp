@@ -38,7 +38,7 @@ void test_read_idx_grid_1()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -81,7 +81,7 @@ void test_read_idx_grid_2()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -126,7 +126,7 @@ void test_read_idx_grid_3()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -171,7 +171,7 @@ void test_read_idx_grid_4()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -214,7 +214,7 @@ void test_read_idx_grid_5()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -257,7 +257,7 @@ void test_read_idx_grid_6()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -299,7 +299,7 @@ void test_read_idx_grid_7()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -342,7 +342,7 @@ void performance_test()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -386,7 +386,7 @@ void test_read_idx_grid_8()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -429,7 +429,7 @@ void test_read_idx_grid_9()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -471,7 +471,7 @@ void test_read_idx_grid_10()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -512,7 +512,7 @@ void test_read_idx_grid_11()
     grid.data.ptr = (char*)malloc(grid.data.bytes);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -551,7 +551,7 @@ void test_read_idx_grid_12()
     grid.data.ptr = (char*)calloc(grid.data.bytes, 1);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -591,7 +591,7 @@ void test_read_idx_grid_13()
     grid.data.ptr = (char*)calloc(grid.data.bytes, 1);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -632,7 +632,7 @@ void test_read_idx_grid_foot()
     grid.data.ptr = (char*)calloc(grid.data.bytes, 1);
 
     Vector3i from, to, stride;
-    idx_file.get_grid_inclusive(grid.extent, hz_level, from, to, stride);
+    idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
     Vector3i dim = (to - from) / stride + 1;
     cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
@@ -679,8 +679,9 @@ void test_write_idx()
   grid.extent = idx_file.get_logical_extent();
   grid.data.bytes = idx_file.get_size_inclusive(grid.extent, 0, hz_level);
   grid.data.ptr = (char*)calloc(grid.data.bytes, 1);
+  int* p = reinterpret_cast<int*>(grid.data.ptr);
   for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
-    grid.data.ptr[i] = i;
+    p[i] = i;
   }
   write_idx_grid(idx_file, 0, 0, grid);
 }

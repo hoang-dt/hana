@@ -191,29 +191,34 @@ Error read_idx_grid(
 {
   grid->type = idx_file.fields[field].type;
   Vector3i from, to, stride;
-  idx_file.get_grid(grid->extent, hz_level, from, to, stride);
+  idx_file.get_grid(grid->extent, hz_level, &from, &to, &stride);
   return read_idx_grid(idx_file, field, time, hz_level, from, to, stride, grid);
 }
 
 Error read_idx_grid(
   const IdxFile& idx_file, int field, int time, int hz_level,
-  const Vector3i& output_from, const Vector3i& output_to,
-  const Vector3i& output_stride, IN_OUT Grid* grid)
+  const Vector3i& output_from, const Vector3i& output_to, const Vector3i& output_stride, IN_OUT Grid* grid)
 {
   // check the inputs
-  if (!verify_idx_file(idx_file))
+  if (!verify_idx_file(idx_file)) {
     return Error::InvalidIdxFile;
-  if (field < 0 || field > idx_file.num_fields)
+  }
+  if (field < 0 || field > idx_file.num_fields) {
     return Error::FieldNotFound;
-  if (time < idx_file.time.begin || time > idx_file.time.end)
+  }
+  if (time < idx_file.time.begin || time > idx_file.time.end) {
     return Error::TimeStepNotFound;
-  if (hz_level < 0 || hz_level > idx_file.get_max_hz_level())
+  }
+  if (hz_level < 0 || hz_level > idx_file.get_max_hz_level()) {
     return Error::InvalidHzLevel;
+  }
   HANA_ASSERT(grid);
-  if (!grid->extent.is_valid())
+  if (!grid->extent.is_valid()) {
     return Error::InvalidVolume;
-  if (!grid->extent.is_inside(idx_file.box))
+  }
+  if (!grid->extent.is_inside(idx_file.box)) {
     return Error::VolumeTooBig;
+  }
   HANA_ASSERT(grid->data.ptr);
 
   grid->type = idx_file.fields[field].type;
@@ -224,20 +229,19 @@ Error read_idx_grid(
   Array<IdxBlockHeader> block_headers(&mallocator);
   block_headers.resize(idx_file.blocks_per_file);
 
-  // NOTE: in the case where hz_level < min hz level, we will treat the first
-  // block as if it were in level (min hz level - 1), and we will break this
-  // block into multiple smaller "virtual" blocks corresponding to the
-  // individual levels later
+  // NOTE: in the case where hz_level < min hz level, we will treat the first block as if it were
+  // in level (min hz level - 1), and we will break this block into multiple smaller "virtual"
+  // blocks corresponding to the individual levels later
   get_block_addresses(idx_file, grid->extent, hz_level, &idx_blocks);
 
-  // determine the most likely size of each block and use a FreeListAllocator
-  // with this size to allocate actual data (not metadata) for the blocks.
-  // some blocks can be smaller due to compression, and/or being near the
-  // boundary
+  // determine the most likely size of each block and use a FreeListAllocator with this size to
+  // allocate actual data (not metadata) for the blocks. some blocks can be smaller due to
+  // compression, and/or being near the boundary
   size_t samples_per_block = (size_t)pow2[idx_file.bits_per_block];
   size_t block_size = idx_file.fields[field].type.bytes() * samples_per_block;
-  if (freelist.max_size() != block_size)
+  if (freelist.max_size() != block_size) {
     freelist.set_min_max_size(block_size / 2, std::max(sizeof(void*), block_size));
+  }
 
   FILE* file = nullptr;
   Error error;
@@ -287,8 +291,8 @@ Error read_idx_grid(
       } else if (block.format == Format::Hz) {
         if (hz_level < idx_file.get_min_hz_level()) {
           threads[thread_count++] = std::thread([&, block]() {
-            // here we break up the first idx block into multiple "virtual"
-            // blocks, each consisting of only samples in one hz level
+            // here we break up the first idx block into multiple "virtual" blocks, each consisting
+            // of only samples in one hz level
             IdxBlock b = block;
             b.bytes = b.type.bytes();
             HANA_ASSERT(b.hz_address == 0);
@@ -299,8 +303,7 @@ Error read_idx_grid(
             uint32_t old_bytes = 0;
             uint64_t old_hz = 1;
             while (b.bytes < block.bytes && b.hz_level <= hz_level) {
-              // each iteration corresponds to one hz level,
-              // starting from 0 until min_hz_level - 1
+              // each iteration corresponds to one hz level, starting from 0 until min_hz_level - 1
               forward_functor<put_block_to_grid_hz, int>(
                 b.type.bytes(), idx_file.bit_string, idx_file.bits_per_block, b,
                 output_from, output_to, output_stride, grid);
@@ -350,14 +353,15 @@ WAIT:
   return error;
 }
 
+// TODO: warning: this function cannot read an hz_level lesser than min_hz_level
 Error read_idx_grid_inclusive(
   const IdxFile& idx_file, int field, int time, int hz_level, IN_OUT Grid* grid)
 {
   grid->type = idx_file.fields[field].type;
   Vector3i from, to, stride;
-  idx_file.get_grid_inclusive(grid->extent, hz_level, from, to, stride);
-  Error err = read_idx_grid(idx_file, field, time, idx_file.get_min_hz_level()-1,
-                from, to, stride, grid);
+  idx_file.get_grid_inclusive(grid->extent, hz_level, &from, &to, &stride);
+  Error err = read_idx_grid(
+    idx_file, field, time, idx_file.get_min_hz_level()-1, from, to, stride, grid);
   if (err.code != Error::NoError) {
     return err;
   }
