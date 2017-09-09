@@ -183,4 +183,16 @@ bool create_full_dir(StringRef path)
   return (error == 0);
 }
 
+#if defined(_WIN32)
+#include <io.h>
+bool dir_exists(StringRef path) {
+  return _access(path.cptr, 0) == 0;
+}
+#else
+#include <unistd.h>
+bool dir_exists(StringRef path) {
+  return access(path.cptr, F_OK) == 0;
+}
+#endif
+
 } // namespace hana

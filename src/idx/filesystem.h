@@ -80,4 +80,6 @@ bool is_relative_path(StringRef path);
 
 bool create_full_dir(StringRef path);
 
+bool dir_exists(StringRef path);
+
 }

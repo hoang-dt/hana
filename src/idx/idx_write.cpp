@@ -109,8 +109,8 @@ Error write_idx_grid(
           }
           char bin_path[512]; // path to the binary file that stores the block
           get_file_name_from_hz(idx_file, time, first_block, STR_REF(bin_path));
-          file = fopen(bin_path, "wb");
-          fclose(file);
+          // TODO: check for file/directory exists
+          file = fopen(bin_path, "ab"); fclose(file); // create the file it it does not exist
           file = fopen(bin_path, "rb+");
         }
         block.data = freelist.allocate(block_size);
