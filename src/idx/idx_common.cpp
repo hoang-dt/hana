@@ -27,17 +27,16 @@ void get_file_name_from_hz(
   // if the path specified in the idx file is relative (to the idx file itself)
   // , add the absolute path to the .idx file itself
   if (idx_file.filename_template.head.is_relative()) {
-    pos += snprintf(file_name.ptr + pos, file_name.size - pos, "%s/",
-            idx_file.absolute_path.path_string().cptr);
+    pos += snprintf(file_name.ptr + pos, file_name.size - pos, "%s/", idx_file.absolute_path.path_string().cptr);
   }
 
   // add the head of the path
   const FileNameTemplate& name_template = idx_file.filename_template;
-  pos += snprintf(file_name.ptr + pos, file_name.size - pos, "%s/",
-          name_template.head.path_string().cptr);
+  if (name_template.head.num_components() > 0) {
+    pos += snprintf(file_name.ptr + pos, file_name.size - pos, "%s/", name_template.head.path_string().cptr);
+  }
   // add the time template
-  pos += snprintf(file_name.ptr + pos, file_name.size - pos,
-          idx_file.time.template_, time);
+  pos += snprintf(file_name.ptr + pos, file_name.size - pos, idx_file.time.template_, time);
 
   // calculate the end index to the string (stored in pos)
   uint64_t z = hz_address;

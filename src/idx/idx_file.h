@@ -173,8 +173,9 @@ Error read_idx_file(const char* file_path, OUT IdxFile* idx_file);
 
 /** Create an IDX file given some essential information of the data */
 void create_idx_file(
-  const Vector3i& dims, int num_fields, const char* type, int num_time_steps, OUT IdxFile* idx_file);
+  const Vector3i& dims, int num_fields, const char* type, int num_time_steps,
+  const char* file, OUT IdxFile* idx_file);
 
-Error write_idx_file(std::ostream& output, const IdxFile& idx_file);
+Error write_idx_file(const char* file_path, OUT IdxFile* idx_file);
 
 }

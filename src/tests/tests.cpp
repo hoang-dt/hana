@@ -8,6 +8,7 @@
 #include <iostream>
 #include <string>
 #include <chrono>
+#include <vector>
 
 using namespace hana;
 using namespace std;
@@ -669,9 +670,19 @@ void test_write_idx()
 {
   Vector3i dims(256, 256, 256);
   IdxFile idx_file;
-  create_idx_file(dims, 1, "int32", 1, &idx_file);
-  std::ofstream idx_stream("test-256x256x256-int32.idx");
-  write_idx_file(idx_stream, idx_file);
+  const char* file_path = "test-256x256x256-int32.idx";
+  create_idx_file(dims, 1, "int32", 1, file_path, &idx_file);
+  write_idx_file(file_path, &idx_file);
+
+  int hz_level = idx_file.get_max_hz_level();
+  Grid grid;
+  grid.extent = idx_file.get_logical_extent();
+  grid.data.bytes = idx_file.get_size_inclusive(grid.extent, 0, hz_level);
+  grid.data.ptr = (char*)calloc(grid.data.bytes, 1);
+  for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
+    grid.data.ptr[i] = i;
+  }
+  write_idx_grid(idx_file, 0, 0, grid);
 }
 
 int main()

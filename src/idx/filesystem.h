@@ -78,4 +78,6 @@ bool get_current_dir(StringRef path);
 /** Return true only if the path is relative. */
 bool is_relative_path(StringRef path);
 
+bool create_full_dir(StringRef path);
+
 }

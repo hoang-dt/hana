@@ -18,8 +18,8 @@ To create a StringRef that encapsulates a literal string (e.g. "Hello"), use the
 STR_REF macro. */
 struct StringRef {
   union {
-      char* ptr = nullptr;
-      const char* cptr;
+    char* ptr = nullptr;
+    const char* cptr;
   };
 
   size_t size = 0;

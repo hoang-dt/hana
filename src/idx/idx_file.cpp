@@ -559,9 +559,7 @@ bool verify_idx_file(const IdxFile& idx_file)
     return false;
   }
 
-  if (idx_file.filename_template.head.num_components() == 0 ||
-    idx_file.filename_template.num_hex_bits[0] == 0 ||
-    !idx_file.filename_template.ext) {
+  if (idx_file.filename_template.num_hex_bits[0] == 0) {
     set_error_msg(filename_template_);
     return false;
   }
@@ -596,13 +594,77 @@ Error read_idx_file(const char* file_path, OUT IdxFile* idx_file)
   return read_idx_file(input, idx_file);
 }
 
+Error write_idx_file(std::ostream& output, const IdxFile& idx_file)
+{
+  output << "(version)\n" << idx_file.version << "\n";
+  output << "(logic_to_physic)\n";
+  for (int i = 0; i < 16; ++i) {
+    output << idx_file.logic_to_physic[i] << " ";
+  }
+  output << "\n";
+  Vector3i from = idx_file.box.from, to = idx_file.box.to;
+  output << "(box)\n" << from.x << " " << to.x << " " << from.y << " " << to.y << " " << from.z << " " << to.z << " 0 0 0 0\n";
+  output << "(fields)\n";
+  for (int i = 0; i < idx_file.num_fields; ++i) {
+    char buf[16];
+    primitive_type_to_string(idx_file.fields[i].type.primitive_type, STR_REF(buf));
+    output << idx_file.fields[i].name << " " << buf;
+    if (idx_file.fields[i].type.num_components > 1) {
+      output << "[" << idx_file.fields[i].type.num_components << "]";
+    }
+    output << " format(1)\n";
+  }
+  output << "(bits)\n" << idx_file.bits << "\n";
+  output << "(bitsperblock)\n" << idx_file.bits_per_block << "\n";
+  output << "(blocksperfile)\n" << idx_file.blocks_per_file << "\n";
+  output << "(interleave block)\n" << idx_file.interleave_block << "\n";
+  output << "(time)\n" << idx_file.time.begin << " " << idx_file.time.end << " " << idx_file.time.template_ << "\n";
+  output << "(filename_template)\n" << ".";
+  if (idx_file.filename_template.head.num_components() > 0) {
+    output << "/" << idx_file.filename_template.head;
+  }
+  for (int i = 0; i < 64 && idx_file.filename_template.num_hex_bits[i] != 0; ++i) {
+    output << "/%0" << idx_file.filename_template.num_hex_bits[i] << "x";
+  }
+  output << idx_file.filename_template.ext << "\n";
+  return Error::NoError; // TODO: check for real errors
+}
+
+Error write_idx_file(const char* file_path, OUT IdxFile* idx_file)
+{
+  HANA_ASSERT(file_path);
+  HANA_ASSERT(idx_file);
+
+  // if the given file name is relative, we get the current directory and add
+  // it to the beginning of the given file name
+  char buffer[512];
+  StringRef file_path_ref(file_path);
+  if (is_relative_path(file_path_ref)) {
+    get_current_dir(STR_REF(buffer));
+    StringRef current_path(buffer);
+    replace(current_path, '\\', '/');
+    idx_file->absolute_path.construct_from(current_path);
+    idx_file->absolute_path.append(Path(file_path_ref));
+  }
+  else {
+    idx_file->absolute_path.construct_from(file_path_ref);
+  }
+  idx_file->absolute_path.remove_last(); // remove the file name
+  std::ofstream output(file_path_ref.ptr);
+  if (!output) {
+    return Error::FileNotFound;
+  }
+  return write_idx_file(output, *idx_file);
+}
+
 /** Create an IDX file given the dimensions, number of fields, type of every field,
 and the number of time steps.
 Note that the exact type of each field can be changed later if needed. The same
 goes for the exact name of each field. By default, the fields are named data0,
 data1, etc. */
 void create_idx_file(
-  const Vector3i& dims, int num_fields, const char* type, int num_time_steps, OUT IdxFile* idx_file)
+  const Vector3i& dims, int num_fields, const char* type, int num_time_steps,
+  const char* file, OUT IdxFile* idx_file)
 {
   HANA_ASSERT(dims.x > 0 && dims.y > 0 && dims.z > 0);
   HANA_ASSERT(num_fields > 0 && num_fields <= IdxFile::num_fields_max);
@@ -629,7 +691,8 @@ void create_idx_file(
     field.compression = Compression::None;
   }
 
-  idx_file->bit_string = StringRef(idx_file->bits);
+  idx_file->bits[0] = 'V';
+  idx_file->bit_string = StringRef(idx_file->bits + 1);
   guess_bit_string(dims, idx_file->bit_string);
   int pow2_x = pow_greater_equal(2, dims.x);
   int pow2_y = pow_greater_equal(2, dims.y);
@@ -643,42 +706,6 @@ void create_idx_file(
   // by default, use 256 blocks per file
   idx_file->blocks_per_file = min(256, num_blocks);
   idx_file->filename_template.num_hex_bits[0] = log_int(16, total_samples);
-}
-
-Error write_idx_file(std::ostream& output, const IdxFile& idx_file)
-{
-  output << "(version)\n" << idx_file.version << "\n";
-  output << "(logic_to_physic)\n";
-  for (int i = 0; i < 16; ++i) {
-    output << idx_file.logic_to_physic[i] << " ";
-  }
-  output << "\n";
-  Vector3i from = idx_file.box.from, to = idx_file.box.to;
-  output << "(box)\n" << from.x << " " << to.x << " " << from.y << " " << to.y << " " << from.z << " " << to.z << " 0 0 0 0\n";
-  output << "(fields)\n";
-  for (int i = 0; i < idx_file.num_fields; ++i) {
-    char buf[16];
-    primitive_type_to_string(idx_file.fields[i].type.primitive_type, STR_REF(buf));
-    output << idx_file.fields[i].name << " " << buf;
-    if (idx_file.fields[i].type.num_components > 1) {
-      output << "[" << idx_file.fields[i].type.num_components << "]";
-    }
-    output << " format(1)\n";
-  }
-  output << "(bits)\nV" << idx_file.bits << "\n";
-  output << "(bitsperblock)\n" << idx_file.bits_per_block << "\n";
-  output << "(blocksperfile)\n" << idx_file.blocks_per_file << "\n";
-  output << "(interleave block)\n" << idx_file.interleave_block << "\n";
-  output << "(time)\n" << idx_file.time.begin << " " << idx_file.time.end << " " << idx_file.time.template_ << "\n";
-  output << "(filename_template)\n" << ".";
-  if (idx_file.filename_template.head.num_components() > 0) {
-    output << "/" << idx_file.filename_template.head;
-  }
-  for (int i = 0; i < 64 && idx_file.filename_template.num_hex_bits[i] != 0; ++i) {
-    output << "/%0" << idx_file.filename_template.num_hex_bits[i] << "x";
-  }
-  output << idx_file.filename_template.ext << "\n";
-  return Error::NoError; // TODO: check for real errors
 }
 
 }
