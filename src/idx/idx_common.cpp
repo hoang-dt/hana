@@ -205,7 +205,7 @@ Error read_idx_block(
   IdxBlockHeader& header = (*block_headers)[block_in_file];
   header.swap_bytes();
   int64_t block_offset = header.offset();
-  std::cout << "read : offset = " << header.offset() << "\n";
+  //std::cout << "read : offset = " << header.offset() << "\n";
   block->bytes = header.bytes();
   if (block_offset == 0 || block->bytes == 0) {
     return Error::BlockNotFound; // not a critical error

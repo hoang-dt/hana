@@ -197,9 +197,10 @@ Error read_idx_grid(
   return read_idx_grid(idx_file, field, time, hz_level, from, to, stride, grid);
 }
 
-Error read_idx_grid(
+Error read_idx_grid_impl(
   const IdxFile& idx_file, int field, int time, int hz_level,
-  const Vector3i& output_from, const Vector3i& output_to, const Vector3i& output_stride, IN_OUT Grid* grid)
+  const Vector3i& output_from, const Vector3i& output_to, const Vector3i& output_stride,
+  IN_OUT Array<IdxBlock>* idx_blocks, IN_OUT Array<IdxBlockHeader>* block_headers, IN_OUT Grid* grid)
 {
   // check the inputs
   if (!verify_idx_file(idx_file)) {
@@ -225,16 +226,12 @@ Error read_idx_grid(
 
   grid->type = idx_file.fields[field].type;
 
-  Mallocator mallocator;
-  // TODO: try to get rid of the following allocation
-  Array<IdxBlock> idx_blocks(&mallocator);
-  Array<IdxBlockHeader> block_headers(&mallocator);
-  block_headers.resize(idx_file.blocks_per_file);
+  block_headers->resize(idx_file.blocks_per_file);
 
   // NOTE: in the case where hz_level < min hz level, we will treat the first block as if it were
   // in level (min hz level - 1), and we will break this block into multiple smaller "virtual"
   // blocks corresponding to the individual levels later
-  get_block_addresses(idx_file, grid->extent, hz_level, &idx_blocks);
+  get_block_addresses(idx_file, grid->extent, hz_level, idx_blocks);
 
   // determine the most likely size of each block and use a FreeListAllocator with this size to
   // allocate actual data (not metadata) for the blocks. some blocks can be smaller due to
@@ -256,12 +253,12 @@ Error read_idx_grid(
   std::thread threads[1024];
 
   /* read the blocks */
-  for (size_t i = 0; i < idx_blocks.size(); i += num_thread_max) {
+  for (size_t i = 0; i < idx_blocks->size(); i += num_thread_max) {
     int thread_count = 0;
-    for (size_t j = 0; j < num_thread_max && i + j < idx_blocks.size(); ++j) {
-      IdxBlock& block = idx_blocks[i + j];
+    for (size_t j = 0; j < num_thread_max && i + j < idx_blocks->size(); ++j) {
+      IdxBlock& block = (*idx_blocks)[i + j];
       Error err = read_idx_block(
-        idx_file, field, time, true, &last_first_block,&file, &block_headers, &block, freelist);
+        idx_file, field, time, true, &last_first_block,&file, block_headers, &block, freelist);
       if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
         error = err;
         goto WAIT;
@@ -355,21 +352,39 @@ WAIT:
   return error;
 }
 
+Error read_idx_grid(
+  const IdxFile& idx_file, int field, int time, int hz_level,
+  const Vector3i& output_from, const Vector3i& output_to, const Vector3i& output_stride, IN_OUT Grid* grid)
+{
+  Mallocator mallocator;
+  // TODO: try to get rid of the following allocation
+  Array<IdxBlock> idx_blocks(&mallocator);
+  Array<IdxBlockHeader> block_headers(&mallocator);
+  return read_idx_grid_impl(
+    idx_file, field, time, hz_level, output_from, output_to, output_stride,
+    &idx_blocks, &block_headers, grid);
+}
+
 // TODO: warning: this function cannot read an hz_level lesser than min_hz_level
 Error read_idx_grid_inclusive(
   const IdxFile& idx_file, int field, int time, int hz_level, IN_OUT Grid* grid)
 {
+  Mallocator mallocator;
+  // TODO: try to get rid of the following allocation
+  Array<IdxBlock> idx_blocks(&mallocator);
+  Array<IdxBlockHeader> block_headers(&mallocator);
   grid->type = idx_file.fields[field].type;
   Vector3i from, to, stride;
   idx_file.get_grid_inclusive(grid->extent, hz_level, &from, &to, &stride);
-  Error err = read_idx_grid(
-    idx_file, field, time, idx_file.get_min_hz_level()-1, from, to, stride, grid);
+  Error err = read_idx_grid_impl(
+    idx_file, field, time, idx_file.get_min_hz_level()-1, from, to, stride, &idx_blocks, &block_headers, grid);
   if (err.code != Error::NoError) {
     return err;
   }
   int min_hz = idx_file.get_min_hz_level();
   for (int l = min_hz; l <= hz_level; ++l) {
-    err = read_idx_grid(idx_file, field, time, l, from, to, stride, grid);
+    err = read_idx_grid_impl(
+      idx_file, field, time, l, from, to, stride, &idx_blocks, &block_headers, grid);
     if (err.code!=Error::NoError && err.code!=Error::BlockNotFound && err.code!=Error::FileNotFound) {
       return err;
     }
