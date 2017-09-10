@@ -197,36 +197,25 @@ Error read_idx_grid(
   return read_idx_grid(idx_file, field, time, hz_level, from, to, stride, grid);
 }
 
+
+// TODO: avoid opening one file multiple times and reading the headers multiple times
 Error read_idx_grid_impl(
   const IdxFile& idx_file, int field, int time, int hz_level,
   const Vector3i& output_from, const Vector3i& output_to, const Vector3i& output_stride,
-  IN_OUT Array<IdxBlock>* idx_blocks, IN_OUT Array<IdxBlockHeader>* block_headers, IN_OUT Grid* grid)
+  IN_OUT FILE** file, IN_OUT Array<IdxBlock>* idx_blocks, IN_OUT Array<IdxBlockHeader>* block_headers,
+  IN_OUT Grid* grid, IN_OUT uint64_t* last_first_block)
 {
   // check the inputs
-  if (!verify_idx_file(idx_file)) {
-    return Error::InvalidIdxFile;
-  }
-  if (field < 0 || field > idx_file.num_fields) {
-    return Error::FieldNotFound;
-  }
-  if (time < idx_file.time.begin || time > idx_file.time.end) {
-    return Error::TimeStepNotFound;
-  }
-  if (hz_level < 0 || hz_level > idx_file.get_max_hz_level()) {
-    return Error::InvalidHzLevel;
-  }
+  if (!verify_idx_file(idx_file)) { return Error::InvalidIdxFile; }
+  if (field < 0 || field > idx_file.num_fields) { return Error::FieldNotFound; }
+  if (time < idx_file.time.begin || time > idx_file.time.end) { return Error::TimeStepNotFound; }
+  if (hz_level < 0 || hz_level > idx_file.get_max_hz_level()) { return Error::InvalidHzLevel; }
   HANA_ASSERT(grid);
-  if (!grid->extent.is_valid()) {
-    return Error::InvalidVolume;
-  }
-  if (!grid->extent.is_inside(idx_file.box)) {
-    return Error::VolumeTooBig;
-  }
+  if (!grid->extent.is_valid()) { return Error::InvalidVolume; }
+  if (!grid->extent.is_inside(idx_file.box)) { return Error::VolumeTooBig; }
   HANA_ASSERT(grid->data.ptr);
 
   grid->type = idx_file.fields[field].type;
-
-  block_headers->resize(idx_file.blocks_per_file);
 
   // NOTE: in the case where hz_level < min hz level, we will treat the first block as if it were
   // in level (min hz level - 1), and we will break this block into multiple smaller "virtual"
@@ -242,9 +231,7 @@ Error read_idx_grid_impl(
     freelist.set_min_max_size(block_size / 2, std::max(sizeof(void*), block_size));
   }
 
-  FILE* file = nullptr;
-  Error error;
-  uint64_t last_first_block = (uint64_t)-1;
+  Error error = Error::NoError;
 
   // if the system has 8 cores (say with Hyperthreading), we use 16 threads.
   // 1024 is the upper limit for the number of threads.
@@ -257,8 +244,35 @@ Error read_idx_grid_impl(
     int thread_count = 0;
     for (size_t j = 0; j < num_thread_max && i + j < idx_blocks->size(); ++j) {
       IdxBlock& block = (*idx_blocks)[i + j];
-      Error err = read_idx_block(
-        idx_file, field, time, true, &last_first_block,&file, block_headers, &block, freelist);
+      uint64_t first_block = 0;
+      int block_in_file = 0;
+      get_first_block_in_file(
+        block.hz_address, idx_file.bits_per_block, idx_file.blocks_per_file, &first_block, &block_in_file);
+      char bin_path[PATH_MAX]; // path to the binary file that stores the block
+      StringRef bin_path_str(STR_REF(bin_path));
+      get_file_name_from_hz(idx_file, time, first_block, bin_path_str);
+      if (first_block != *last_first_block) { // open new file
+        if (*file != nullptr) {
+          fclose(*file);
+        }
+        *file = fopen(bin_path_str.cptr, "rb");
+      }
+      Error err = Error::NoError;
+      if (*file == nullptr) {
+        err = Error::FileNotFound;
+      }
+      else { // file exists
+        if (*last_first_block != first_block) { // open new file
+          err = read_idx_block(
+            idx_file, field, time, true, block_in_file, file, block_headers, &block, freelist);
+        }
+        else { // read the currently opened file
+          err = read_idx_block(
+            idx_file, field, time, false, block_in_file, file, block_headers, &block, freelist);
+        }
+      }
+      *last_first_block = first_block;
+      IdxBlockHeader& header = (*block_headers)[block_in_file];
       if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
         error = err;
         goto WAIT;
@@ -345,10 +359,6 @@ WAIT:
     thread_count = 0;
   }
 
-  if (file) {
-    fclose(file);
-  }
-
   return error;
 }
 
@@ -360,12 +370,20 @@ Error read_idx_grid(
   // TODO: try to get rid of the following allocation
   Array<IdxBlock> idx_blocks(&mallocator);
   Array<IdxBlockHeader> block_headers(&mallocator);
-  return read_idx_grid_impl(
-    idx_file, field, time, hz_level, output_from, output_to, output_stride,
-    &idx_blocks, &block_headers, grid);
+  block_headers.resize(idx_file.blocks_per_file);
+  FILE* file = nullptr;
+  uint64_t last_first_block = (uint64_t)-1;
+  Error error = read_idx_grid_impl(
+    idx_file, field, time, hz_level, output_from, output_to, output_stride, &file, &idx_blocks,
+    &block_headers, grid, &last_first_block);
+  if (file != nullptr) {
+    fclose(file);
+  }
+  return error;
 }
 
 // TODO: warning: this function cannot read an hz_level lesser than min_hz_level
+// TODO: use scope guard for file
 Error read_idx_grid_inclusive(
   const IdxFile& idx_file, int field, int time, int hz_level, IN_OUT Grid* grid)
 {
@@ -373,23 +391,31 @@ Error read_idx_grid_inclusive(
   // TODO: try to get rid of the following allocation
   Array<IdxBlock> idx_blocks(&mallocator);
   Array<IdxBlockHeader> block_headers(&mallocator);
+  block_headers.resize(idx_file.blocks_per_file);
   grid->type = idx_file.fields[field].type;
   Vector3i from, to, stride;
   idx_file.get_grid_inclusive(grid->extent, hz_level, &from, &to, &stride);
-  Error err = read_idx_grid_impl(
-    idx_file, field, time, idx_file.get_min_hz_level()-1, from, to, stride, &idx_blocks, &block_headers, grid);
-  if (err.code != Error::NoError) {
-    return err;
+  FILE* file = nullptr;
+  uint64_t last_first_block = (uint64_t)-1;
+  Error error = read_idx_grid_impl(
+    idx_file, field, time, idx_file.get_min_hz_level()-1, from, to, stride, &file, &idx_blocks,
+    &block_headers, grid, &last_first_block);
+  if (error.code != Error::NoError) {
+    goto END;
   }
   int min_hz = idx_file.get_min_hz_level();
   for (int l = min_hz; l <= hz_level; ++l) {
-    err = read_idx_grid_impl(
-      idx_file, field, time, l, from, to, stride, &idx_blocks, &block_headers, grid);
-    if (err.code!=Error::NoError && err.code!=Error::BlockNotFound && err.code!=Error::FileNotFound) {
-      return err;
+    error = read_idx_grid_impl(
+      idx_file, field, time, l, from, to, stride, &file, &idx_blocks, &block_headers, grid, &last_first_block);
+    if (error.code!=Error::NoError && error.code!=Error::BlockNotFound && error.code!=Error::FileNotFound) {
+      goto END;
     }
   }
-  return Error::NoError;
+END:
+  if (file != nullptr) {
+    fclose(file);
+  }
+  return error;
 }
 
 void deallocate_memory()

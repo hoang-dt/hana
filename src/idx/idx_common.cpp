@@ -166,40 +166,22 @@ the same file. The file is returned so that after the last call, the caller can
 close the last file opened. */
 // TOOD: remove the read_headers param
 Error read_idx_block(
-  const IdxFile& idx_file, int field, int time, bool read_headers,
-  IN_OUT uint64_t* last_first_block, IN_OUT FILE** file,
-  IN_OUT Array<IdxBlockHeader>* block_headers,
-  IN_OUT IdxBlock* block, Allocator& alloc)
+  const IdxFile& idx_file, int field, int time, bool open_new_file, uint64_t block_in_file,
+  IN_OUT FILE** file, IN_OUT Array<IdxBlockHeader>* block_headers, IN_OUT IdxBlock* block, Allocator& alloc)
 {
   HANA_ASSERT(file != nullptr);
-  HANA_ASSERT(last_first_block != nullptr);
   HANA_ASSERT(block_headers != nullptr);
   HANA_ASSERT(block != nullptr);
 
-  // block index is the rank of this block (0th block, 1st block, 2nd,...)
-  uint64_t first_block = 0;
-  int block_in_file = 0;
-  get_first_block_in_file(
-    block->hz_address, idx_file.bits_per_block, idx_file.blocks_per_file, &first_block, &block_in_file);
-  char bin_path[512]; // path to the binary file that stores the block
-  get_file_name_from_hz(idx_file, time, first_block, STR_REF(bin_path));
-  if (*last_first_block != first_block) { // open a new file
-    *last_first_block = first_block;
-    if (*file) {
-      fclose(*file);
+  Error error = Error::NoError;
+  if (open_new_file) { // open a new file
+    // read all headers
+    if (fseek(*file, sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * idx_file.blocks_per_file * field, SEEK_SET)) {
+      return Error::HeaderNotFound;
     }
-    if (read_headers) {
-      Error err = read_all_block_headers(file, bin_path, field, idx_file.blocks_per_file, block_headers);
-      if (err.code != Error::NoError) {
-        return err;
-      }
+    if (fread(&(*block_headers)[0], sizeof(IdxBlockHeader), idx_file.blocks_per_file, *file) != idx_file.blocks_per_file) {
+      return Error::HeaderNotFound;
     }
-  }
-
-  if (*file == nullptr) {
-    Error err;
-    err.code = Error::FileNotFound;
-    return err;
   }
 
   IdxBlockHeader& header = (*block_headers)[block_in_file];
@@ -295,24 +277,5 @@ Error read_idx_block(
 //  return Error::NoError;
 //}
 //
-
-/** Given a binary file, read all the block headers from the file. */
-Error read_all_block_headers(
-  IN_OUT FILE** file, const char* bin_path, int field, int blocks_per_file,
-  OUT Array<IdxBlockHeader>* headers)
-{
-  HANA_ASSERT(file != nullptr);
-  *file = fopen(bin_path, "rb+");
-  if (!*file) {
-    return Error::FileNotFound;
-  }
-  if (fseek(*file, sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * blocks_per_file * field, SEEK_SET)) {
-    return Error::HeaderNotFound;
-  }
-  if (fread(&(*headers)[0], sizeof(IdxBlockHeader), blocks_per_file, *file) != blocks_per_file) {
-    return Error::HeaderNotFound;
-  }
-  return Error::NoError;
-}
 
 }

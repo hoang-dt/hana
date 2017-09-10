@@ -57,8 +57,10 @@ void operator()(const Grid& grid, IN_OUT IdxBlock* block)
 
 /* Write an IDX grid at one particular HZ level.
 TODO: this function overlaps quite a bit with read_idx_grid. */
-Error write_idx_grid(
-  const IdxFile& idx_file, int field, int time, int hz_level, const Grid& grid)
+Error write_idx_grid_impl(
+  const IdxFile& idx_file, int field, int time, int hz_level, const Grid& grid, IN_OUT FILE** file,
+  IN_OUT Array<IdxBlock>* idx_blocks, IN_OUT Array<IdxBlockHeader>* block_headers,
+  IN_OUT uint64_t* last_first_block)
 {
   /* check the inputs */
   if (!verify_idx_file(idx_file)) { return Error::InvalidIdxFile; }
@@ -70,11 +72,7 @@ Error write_idx_grid(
   HANA_ASSERT(grid.data.ptr);
 
   /* figure out which blocks touch this grid */
-  Mallocator mallocator;
-  Array<IdxBlock> idx_blocks(&mallocator);
-  Array<IdxBlockHeader> block_headers(&mallocator); // all headers for one file
-  block_headers.resize(idx_file.blocks_per_file);
-  get_block_addresses(idx_file, grid.extent, hz_level, &idx_blocks);
+  get_block_addresses(idx_file, grid.extent, hz_level, idx_blocks);
 
   size_t samples_per_block = (size_t)pow2[idx_file.bits_per_block];
   size_t block_size = idx_file.fields[field].type.bytes() * samples_per_block;
@@ -82,43 +80,58 @@ Error write_idx_grid(
     freelist.set_min_max_size(block_size / 2, std::max(sizeof(void*), block_size));
   }
 
-  FILE* file = nullptr;
   Error error = Error::NoError;
-  uint64_t last_first_block = (uint64_t)-1;
 
   size_t num_thread_max = size_t(std::thread::hardware_concurrency());
   num_thread_max = min(num_thread_max * 2, (size_t)1024);
   std::thread threads[1024];
 
   /* (read and) write the blocks */
-  for (size_t i = 0; i < idx_blocks.size(); i += num_thread_max) {
+  std::cout << (*block_headers)[0].offset() << "\n";
+  for (size_t i = 0; i < idx_blocks->size(); i += num_thread_max) {
     int thread_count = 0;
-    for (size_t j = 0; j < num_thread_max && i + j < idx_blocks.size(); ++j) {
-      IdxBlock& block = idx_blocks[i + j];
+    for (size_t j = 0; j < num_thread_max && i + j < idx_blocks->size(); ++j) {
+      IdxBlock& block = (*idx_blocks)[i + j];
       std::cout << "block " << i+j << "\n";
       uint64_t first_block = 0;
       int block_in_file = 0;
       get_first_block_in_file(
         block.hz_address, idx_file.bits_per_block, idx_file.blocks_per_file, &first_block, &block_in_file);
       std::cout << "block in file = " << block_in_file << "\n";
-      Error err = read_idx_block(
-        idx_file, field, time, true, &last_first_block, &file, &block_headers, &block, freelist);
-      IdxBlockHeader& header = block_headers[block_in_file];
+      char bin_path[PATH_MAX]; // path to the binary file that stores the block
+      StringRef bin_path_str(STR_REF(bin_path));
+      get_file_name_from_hz(idx_file, time, first_block, bin_path_str);
+      if (first_block != *last_first_block) { // open new file
+        if (file != nullptr) {
+          fclose(*file);
+        }
+        *file = fopen(bin_path_str.cptr, "rb+");
+      }
+      Error err = Error::NoError;
+      if (*file == nullptr) {
+        err = Error::FileNotFound;
+      }
+      else { // file exists
+        if (*last_first_block != first_block) { // open new file
+          err = read_idx_block(
+            idx_file, field, time, true, block_in_file, file, block_headers, &block, freelist);
+        }
+        else { // read the currently opened file
+          err = read_idx_block(
+            idx_file, field, time, false, block_in_file, file, block_headers, &block, freelist);
+        }
+      }
+      *last_first_block = first_block;
+      IdxBlockHeader& header = (*block_headers)[block_in_file];
       if (err == Error::FileNotFound || err == Error::HeaderNotFound || err == Error::BlockNotFound) {
         if (err == Error::FileNotFound) {
-          if (file) {
-            fclose(file); // TODO: WHY
-          }
-          char bin_path[PATH_MAX]; // path to the binary file that stores the block
-          StringRef bin_path_str(STR_REF(bin_path));
-          get_file_name_from_hz(idx_file, time, first_block, bin_path_str);
           size_t last_slash = find_last(bin_path_str, STR_REF("/"));
           StringRef bin_dir_str = sub_string(bin_path_str, 0, last_slash);
           if (!dir_exists(bin_dir_str)) {
             create_full_dir(bin_dir_str);
           }
-          file = fopen(bin_path, "ab"); fclose(file); // create the file it it does not exist
-          file = fopen(bin_path, "rb+");
+          *file = fopen(bin_path, "ab"); fclose(*file); // create the file it it does not exist
+          *file = fopen(bin_path, "rb+");
         }
         block.data = freelist.allocate(block_size);
         block.bytes = static_cast<uint32_t>(block_size);
@@ -127,59 +140,90 @@ Error write_idx_grid(
         header.set_bytes(block.bytes);
         header.set_format(Format::RowMajor);
         size_t header_size = sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * idx_file.blocks_per_file * idx_file.num_fields;
-        fseek(file, 0, SEEK_END);
-        size_t file_size = ftell(file);
+        fseek(*file, 0, SEEK_END);
+        size_t file_size = ftell(*file);
         size_t offset = std::max(header_size, file_size);
         header.set_offset(static_cast<int64_t>(offset));
         std::cout << "write: offset = " << header.offset() << "\n";
         header.set_compression(block.compression); // TODO
       }
       else if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
-        return err; // critical errors
+        error = err; // critical errors
+        goto END;
       }
       if (block.compression != Compression::None) { // TODO
-        return Error::CompressionUnsupported;
+        error = Error::CompressionUnsupported;
+        goto END;
       }
       forward_functor<put_grid_to_block, int>(block.type.bytes(), grid, &block);
 
       /* write the block to disk */
-      fseek(file, header.offset(), SEEK_SET);
-      if (fwrite(block.data.ptr, block.bytes, 1, file) != 1) {
-        return Error::BlockWriteFailed;
+      fseek(*file, header.offset(), SEEK_SET);
+      if (fwrite(block.data.ptr, block.bytes, 1, *file) != 1) {
+        error = Error::BlockWriteFailed;
+        goto END;
       }
 
       /* if i am the last block in the file, write all the block headers for the file */
       for (int k = 0; k< 16; ++k) {
-        auto t = block_headers[k].offset();
+        auto t =(* block_headers)[k].offset();
         std::cout << t << "\n";
       }
       if (block_in_file - first_block + 1 == idx_file.blocks_per_file) {
         size_t offset = sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * idx_file.blocks_per_file * field;
-        fseek(file, offset, SEEK_SET);
-        if (fwrite(&block_headers[0], sizeof(IdxBlockHeader), idx_file.blocks_per_file, file) != idx_file.blocks_per_file) {
-          return Error::HeaderWriteFailed;
+        fseek(*file, offset, SEEK_SET);
+        if (fwrite(&block_headers[0], sizeof(IdxBlockHeader), idx_file.blocks_per_file, *file) != idx_file.blocks_per_file) {
+          error = Error::HeaderWriteFailed;
+          goto END;
         }
       }
     }
   }
-  return Error::NoError;
+END:
+  return error;
+}
+
+Error write_idx_grid(
+  const IdxFile& idx_file, int field, int time, int hz_level, const Grid& grid)
+{
+  Mallocator mallocator;
+  Array<IdxBlock> idx_blocks(&mallocator);
+  Array<IdxBlockHeader> block_headers(&mallocator); // all headers for one file
+  block_headers.resize(idx_file.blocks_per_file);
+  FILE* file = nullptr;
+  uint64_t last_first_block = (uint64_t)-1;
+  Error error = write_idx_grid_impl(idx_file, field, time, hz_level, grid, &file, &idx_blocks, &block_headers, &last_first_block);
+  if (file != nullptr) {
+    fclose(file);
+  }
+  return error;
 }
 
 Error write_idx_grid(
   const IdxFile& idx_file, int field, int time, const Grid& grid)
 {
   HANA_ASSERT(grid.data.ptr != nullptr);
+  Mallocator mallocator;
+  Array<IdxBlock> idx_blocks(&mallocator);
+  Array<IdxBlockHeader> block_headers(&mallocator); // all headers for one file
+  block_headers.resize(idx_file.blocks_per_file);
   int min_hz = idx_file.get_min_hz_level();
   int max_hz = idx_file.get_max_hz_level();
-  Error err = write_idx_grid(idx_file, field, time, min_hz-1, grid);
+  FILE* file = nullptr;
+  uint64_t last_first_block = (uint64_t)-1;
+  Error err = write_idx_grid_impl(idx_file, field, time, min_hz-1, grid, &file, &idx_blocks, &block_headers, &last_first_block);
+  std::cout << block_headers[0].offset();
   if (err.code != Error::NoError) {
     return err;
   }
   for (int l = min_hz; l <= max_hz; ++l) {
-    err = write_idx_grid(idx_file, field, time, l, grid);
+    err = write_idx_grid_impl(idx_file, field, time, l, grid, &file, &idx_blocks, &block_headers, &last_first_block);
     if (err.code != Error::NoError) {
       return err;
     }
+  }
+  if (file != nullptr) {
+    fclose(file);
   }
   return Error::NoError;
 }
