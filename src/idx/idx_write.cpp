@@ -1,14 +1,14 @@
 #include "allocator.h"
 #include "array.h"
-#include "macros.h"
-#include "math.h"
 #include "error.h"
 #include "idx.h"
 #include "idx_common.h"
+#include "macros.h"
+#include "math.h"
 #include "utils.h"
 #include <cstdint>
+#include <condition_variable>
 #include <thread>
-#include <iostream>
 
 namespace hana {
 
@@ -19,33 +19,33 @@ both are in row-major order. Here we don't need to specify the input grid's
 from/to/stride because most of the time (a subset of) the original grid is given. */
 template <typename T>
 struct put_grid_to_block {
-void operator()(const Grid& grid, IN_OUT IdxBlock* block)
+void operator()(const Grid& grid, IN_OUT IdxBlock& block)
 {
   Vector3i from, to;
-  if (!intersect_grid(grid.extent, block->from, block->to, block->stride, &from, &to)) {
+  if (!intersect_grid(grid.extent, block.from, block.to, block.stride, &from, &to)) {
     return;
   }
 
   T* src = reinterpret_cast<T*>(grid.data.ptr);
-  T* dst = reinterpret_cast<T*>(block->data.ptr);
+  T* dst = reinterpret_cast<T*>(block.data.ptr);
   HANA_ASSERT(src && dst);
   // TODO: optimize this loop (parallelize?)
-  Vector3i output_dims = (block->to - block->from) / block->stride + 1;
+  Vector3i output_dims = (block.to - block.from) / block.stride + 1;
   uint64_t sx = output_dims.x, sxy = output_dims.x * output_dims.y;
   Vector3i input_dims = grid.extent.to - grid.extent.from + 1;
   uint64_t dx = input_dims.x, dxy = input_dims.x * input_dims.y;
   for (int z = from.z,
-    k = (from.z - block->from.z) / block->stride.z; // index into the block's buffer
+    k = (from.z - block.from.z) / block.stride.z; // index into the block's buffer
     z <= to.z; // loop variable and index into the grid's buffer
-    z += block->stride.z, ++k) {
+    z += block.stride.z, ++k) {
     for (int y = from.y,
-      j = (from.y - block->from.y) / block->stride.y;
+      j = (from.y - block.from.y) / block.stride.y;
       y <= to.y;
-      y += block->stride.y, ++j) {
+      y += block.stride.y, ++j) {
       for (int x = from.x,
-        i = (from.x - block->from.x) / block->stride.x;
+        i = (from.x - block.from.x) / block.stride.x;
         x <= to.x;
-        x += block->stride.x, ++i) {
+        x += block.stride.x, ++i) {
         uint64_t ijk = i + j * sx + k * sxy;
         uint64_t xyz = x + y * dx + z * dxy;
         dst[ijk] = src[xyz];
@@ -55,9 +55,12 @@ void operator()(const Grid& grid, IN_OUT IdxBlock* block)
 }
 };
 
+std::condition_variable cv;
+
 /* Write an IDX grid at one particular HZ level.
 TODO: this function overlaps quite a bit with read_idx_grid. */
 // TODO: remove the last_first_block parameter and replace with simple modulo check
+// TODO: think about freeing memory
 Error write_idx_grid_impl(
   const IdxFile& idx_file, int field, int time, int hz_level, const Grid& grid, IN_OUT FILE** file,
   IN_OUT Array<IdxBlock>* idx_blocks, IN_OUT Array<IdxBlockHeader>* block_headers,
@@ -157,8 +160,9 @@ Error write_idx_grid_impl(
         error = Error::CompressionUnsupported;
         goto END;
       }
-      forward_functor<put_grid_to_block, int>(block.type.bytes(), grid, &block);
-
+      //threads[thread_count++] = std::thread([&grid, block]() {
+        forward_functor<put_grid_to_block, int>(block.type.bytes(), grid, block);
+      //});
       /* write the block to disk */
       fseek(*file, header.offset(), SEEK_SET);
       if (fwrite(block.data.ptr, block.bytes, 1, *file) != 1) {

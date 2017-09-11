@@ -144,8 +144,7 @@ template <typename T>
 struct put_block_to_grid {
 void operator()(
   const IdxBlock& block, const Vector3i& output_from,
-  const Vector3i& output_to, const Vector3i& output_stride,
-  IN_OUT Grid* grid)
+  const Vector3i& output_to, const Vector3i& output_stride, IN_OUT Grid* grid)
 {
   Vector3i from, to;
   if (!intersect_grid(grid->extent, block.from, block.to, block.stride, &from, &to)) {
@@ -295,14 +294,14 @@ Error read_idx_grid_impl(
         goto WAIT;
       }
       if (block.format == Format::RowMajor) {
-        threads[thread_count++] = std::thread([&, block]() {
+        threads[thread_count++] = std::thread([&output_from, &output_to, &output_stride, &grid, block]() {
           forward_functor<put_block_to_grid, int>(
             block.type.bytes(), block, output_from, output_to, output_stride, grid);
           mutex.lock(); freelist.deallocate(block.data); mutex.unlock();
         });
       } else if (block.format == Format::Hz) {
         if (hz_level < idx_file.get_min_hz_level()) {
-          threads[thread_count++] = std::thread([&, block]() {
+          threads[thread_count++] = std::thread([&output_from, &output_to, &output_stride, &grid, &idx_file, hz_level, block]() {
             // here we break up the first idx block into multiple "virtual" blocks, each consisting
             // of only samples in one hz level
             IdxBlock b = block;
@@ -337,7 +336,7 @@ Error read_idx_grid_impl(
           });
         }
         else { // for hz levels >= min hz level
-          threads[thread_count++] = std::thread([&](){
+          threads[thread_count++] = std::thread([&output_from, &output_to, &output_stride, &grid, &idx_file, block]() {
             forward_functor<put_block_to_grid_hz, int>(
               block.type.bytes(), idx_file.bit_string, idx_file.bits_per_block, block,
               output_from, output_to, output_stride, grid);
