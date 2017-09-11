@@ -147,7 +147,6 @@ Error write_idx_grid_impl(
         size_t file_size = ftell(*file);
         size_t offset = std::max(header_size, file_size);
         header.set_offset(static_cast<int64_t>(offset));
-        std::cout << "write: offset = " << header.offset() << "\n";
         header.set_compression(block.compression); // TODO
       }
       else if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
