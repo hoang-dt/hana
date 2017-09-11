@@ -88,17 +88,14 @@ Error write_idx_grid_impl(
   std::thread threads[1024];
 
   /* (read and) write the blocks */
-  std::cout << (*block_headers)[0].offset() << "\n";
   for (size_t i = 0; i < idx_blocks->size(); i += num_thread_max) {
     int thread_count = 0;
     for (size_t j = 0; j < num_thread_max && i + j < idx_blocks->size(); ++j) {
       IdxBlock& block = (*idx_blocks)[i + j];
-      std::cout << "block " << i+j << "\n";
       uint64_t first_block = 0;
       int block_in_file = 0;
       get_first_block_in_file(
         block.hz_address, idx_file.bits_per_block, idx_file.blocks_per_file, &first_block, &block_in_file);
-      std::cout << "block in file = " << block_in_file << "\n";
       char bin_path[PATH_MAX]; // path to the binary file that stores the block
       StringRef bin_path_str(STR_REF(bin_path));
       get_file_name_from_hz(idx_file, time, first_block, bin_path_str);
@@ -218,7 +215,6 @@ Error write_idx_grid(
   FILE* file = nullptr;
   uint64_t last_first_block = (uint64_t)-1;
   Error error = write_idx_grid_impl(idx_file, field, time, min_hz-1, grid, &file, &idx_blocks, &block_headers, &last_first_block);
-  std::cout << block_headers[0].offset();
   if (error.code != Error::NoError) {
     goto END;
   }
