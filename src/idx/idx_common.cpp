@@ -166,7 +166,7 @@ the same file. The file is returned so that after the last call, the caller can
 close the last file opened. */
 // TOOD: remove the read_headers param
 Error read_idx_block(
-  const IdxFile& idx_file, int field, int time, bool open_new_file, uint64_t block_in_file,
+  const IdxFile& idx_file, int field, bool open_new_file, uint64_t block_in_file,
   IN_OUT FILE** file, IN_OUT Array<IdxBlockHeader>* block_headers, IN_OUT IdxBlock* block, Allocator& alloc)
 {
   HANA_ASSERT(file != nullptr);
@@ -185,7 +185,7 @@ Error read_idx_block(
   }
 
   IdxBlockHeader& header = (*block_headers)[block_in_file];
-  header.swap_bytes();
+  //header.swap_bytes();
   int64_t block_offset = header.offset();
   //std::cout << "read : offset = " << header.offset() << "\n";
   block->bytes = header.bytes();

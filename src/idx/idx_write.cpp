@@ -57,6 +57,7 @@ void operator()(const Grid& grid, IN_OUT IdxBlock* block)
 
 /* Write an IDX grid at one particular HZ level.
 TODO: this function overlaps quite a bit with read_idx_grid. */
+// TODO: remove the last_first_block parameter and replace with simple modulo check
 Error write_idx_grid_impl(
   const IdxFile& idx_file, int field, int time, int hz_level, const Grid& grid, IN_OUT FILE** file,
   IN_OUT Array<IdxBlock>* idx_blocks, IN_OUT Array<IdxBlockHeader>* block_headers,
@@ -102,7 +103,7 @@ Error write_idx_grid_impl(
       StringRef bin_path_str(STR_REF(bin_path));
       get_file_name_from_hz(idx_file, time, first_block, bin_path_str);
       if (first_block != *last_first_block) { // open new file
-        if (file != nullptr) {
+        if (*file != nullptr) {
           fclose(*file);
         }
         *file = fopen(bin_path_str.cptr, "rb+");
@@ -114,11 +115,16 @@ Error write_idx_grid_impl(
       else { // file exists
         if (*last_first_block != first_block) { // open new file
           err = read_idx_block(
-            idx_file, field, time, true, block_in_file, file, block_headers, &block, freelist);
+            idx_file, field, true, block_in_file, file, block_headers, &block, freelist);
         }
         else { // read the currently opened file
-          err = read_idx_block(
-            idx_file, field, time, false, block_in_file, file, block_headers, &block, freelist);
+          if ((*block_headers)[block_in_file].offset() > 0) {
+            err = read_idx_block(
+              idx_file, field, false, block_in_file, file, block_headers, &block, freelist);
+          }
+          else {
+            err = Error::BlockNotFound;
+          }
         }
       }
       *last_first_block = first_block;
@@ -165,14 +171,14 @@ Error write_idx_grid_impl(
       }
 
       /* if i am the last block in the file, write all the block headers for the file */
-      for (int k = 0; k< 16; ++k) {
-        auto t =(* block_headers)[k].offset();
-        std::cout << t << "\n";
-      }
       if (block_in_file - first_block + 1 == idx_file.blocks_per_file) {
+        // TODO: what if we never write the last block of the file?
+        //for (size_t k = 0; k < block_headers->size(); ++k) {
+        //  (*block_headers)[k].swap_bytes();
+        //}
         size_t offset = sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * idx_file.blocks_per_file * field;
         fseek(*file, offset, SEEK_SET);
-        if (fwrite(&block_headers[0], sizeof(IdxBlockHeader), idx_file.blocks_per_file, *file) != idx_file.blocks_per_file) {
+        if (fwrite(&(*block_headers)[0], sizeof(IdxBlockHeader), idx_file.blocks_per_file, *file) != idx_file.blocks_per_file) {
           error = Error::HeaderWriteFailed;
           goto END;
         }
@@ -211,21 +217,22 @@ Error write_idx_grid(
   int max_hz = idx_file.get_max_hz_level();
   FILE* file = nullptr;
   uint64_t last_first_block = (uint64_t)-1;
-  Error err = write_idx_grid_impl(idx_file, field, time, min_hz-1, grid, &file, &idx_blocks, &block_headers, &last_first_block);
+  Error error = write_idx_grid_impl(idx_file, field, time, min_hz-1, grid, &file, &idx_blocks, &block_headers, &last_first_block);
   std::cout << block_headers[0].offset();
-  if (err.code != Error::NoError) {
-    return err;
+  if (error.code != Error::NoError) {
+    goto END;
   }
   for (int l = min_hz; l <= max_hz; ++l) {
-    err = write_idx_grid_impl(idx_file, field, time, l, grid, &file, &idx_blocks, &block_headers, &last_first_block);
-    if (err.code != Error::NoError) {
-      return err;
+    error = write_idx_grid_impl(idx_file, field, time, l, grid, &file, &idx_blocks, &block_headers, &last_first_block);
+    if (error.code != Error::NoError) {
+      goto END;
     }
   }
+END:
   if (file != nullptr) {
     fclose(file);
   }
-  return Error::NoError;
+  return error;
 }
 
 }

@@ -40,7 +40,13 @@ Compression IdxBlockHeader::compression() const
 
 void IdxBlockHeader::set_compression(Compression comp)
 {
-  // TODO
+  switch (comp) {
+    case Compression::None: buf[5] = (buf[5] & ~0xf) + 0; break;
+    case Compression::Zip : buf[5] = (buf[5] & ~0xf) + 3; break;
+    case Compression::Jpg : buf[5] = (buf[5] & ~0xf) + 4; break;
+    case Compression::Exr : buf[5] = (buf[5] & ~0xf) + 5; break;
+    case Compression::Png : buf[5] = (buf[6] & ~0xf) + 6; break;
+  }
 }
 
 Format IdxBlockHeader::format() const
@@ -54,10 +60,10 @@ Format IdxBlockHeader::format() const
 void IdxBlockHeader::set_format(Format format)
 {
   if (format == Format::RowMajor) {
-    set_bit(buf[5], 5);
+    set_bit(buf[5], 4);
   }
   else if (format == Format::Hz) {
-    unset_bit(buf[5], 5);
+    unset_bit(buf[5], 4);
   }
 }
 

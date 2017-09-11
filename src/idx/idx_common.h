@@ -18,6 +18,6 @@ namespace hana {
     OUT uint64_t* first_block, OUT int* block_in_file);
 
   Error read_idx_block(
-    const IdxFile& idx_file, int field, int time, bool open_new_file, uint64_t block_in_file,
+    const IdxFile& idx_file, int field, bool open_new_file, uint64_t block_in_file,
     IN_OUT FILE** file, IN_OUT Array<IdxBlockHeader>* block_headers, IN_OUT IdxBlock* block, Allocator& alloc);
 }

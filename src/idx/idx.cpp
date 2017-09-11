@@ -264,15 +264,14 @@ Error read_idx_grid_impl(
       else { // file exists
         if (*last_first_block != first_block) { // open new file
           err = read_idx_block(
-            idx_file, field, time, true, block_in_file, file, block_headers, &block, freelist);
+            idx_file, field, true, block_in_file, file, block_headers, &block, freelist);
         }
         else { // read the currently opened file
           err = read_idx_block(
-            idx_file, field, time, false, block_in_file, file, block_headers, &block, freelist);
+            idx_file, field, false, block_in_file, file, block_headers, &block, freelist);
         }
       }
       *last_first_block = first_block;
-      IdxBlockHeader& header = (*block_headers)[block_in_file];
       if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
         error = err;
         goto WAIT;

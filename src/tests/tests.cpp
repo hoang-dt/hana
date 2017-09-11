@@ -681,7 +681,7 @@ void test_write_idx()
   grid.data.ptr = (char*)calloc(grid.data.bytes, 1);
   int* p = reinterpret_cast<int*>(grid.data.ptr);
   for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
-  p[i] = i;
+    p[i] = i;
   }
   write_idx_grid(idx_file, 0, 0, grid);
 
@@ -689,8 +689,8 @@ void test_write_idx()
   IdxFile idx_file_r;
   Error error_r = read_idx_file(file_path, &idx_file_r);
   if (error_r.code != Error::NoError) {
-  cout << "Error: " << error_r.get_error_msg() << "\n";
-  return;
+    cout << "Error: " << error_r.get_error_msg() << "\n";
+    return;
   }
 
   int field_r = 0;
@@ -709,10 +709,14 @@ void test_write_idx()
   error_r = read_idx_grid_inclusive(idx_file_r, field_r, time_r, hz_level, &grid);
   deallocate_memory();
 
-  if (error_r.code != Error::NoError) {
-  cout << "Error: " << error_r.get_error_msg() << "\n";
-  return;
+  for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
+    HANA_ASSERT(p[i] == i);
   }
+
+  if (error_r.code != Error::NoError) {
+    cout << "Error: " << error_r.get_error_msg() << "\n";
+  }
+  return;
 }
 
 int main()
@@ -720,8 +724,8 @@ int main()
   using namespace hana;
   using namespace std::chrono;
   high_resolution_clock::time_point t1 = high_resolution_clock::now();
-  //test_write_idx();
-  //return 0;
+  test_write_idx();
+  return 0;
   test_get_block_grid();
   test_read_idx_grid_1();
   test_read_idx_grid_2();

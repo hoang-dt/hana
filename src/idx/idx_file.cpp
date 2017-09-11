@@ -699,9 +699,13 @@ void create_idx_file(
   int pow2_z = pow_greater_equal(2, dims.z);
   uint64_t total_samples = (uint64_t)pow2_x * pow2_y * pow2_z;
 
-  // use a default block size of 1 MB
+  // use a default block size of roughly 1 MB
   idx_file->bits_per_block = log_int(2, 1024 * 1024);
   int samples_per_block = pow2[idx_file->bits_per_block];
+  if (samples_per_block > int64_t(dims.x)*int64_t(dims.y)*int64_t(dims.z)) {
+    idx_file->bits_per_block = log_int(2, int64_t(pow2_x) * int64_t(pow2_y) * int64_t(pow2_z));
+    samples_per_block = pow2[idx_file->bits_per_block];
+  }
   int num_blocks = static_cast<int>(total_samples / samples_per_block);
   // by default, use 256 blocks per file
   idx_file->blocks_per_file = min(256, num_blocks);
