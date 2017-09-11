@@ -173,9 +173,9 @@ Error write_idx_grid_impl(
       /* if i am the last block in the file, write all the block headers for the file */
       if (block_in_file - first_block + 1 == idx_file.blocks_per_file) {
         // TODO: what if we never write the last block of the file?
-        //for (size_t k = 0; k < block_headers->size(); ++k) {
-        //  (*block_headers)[k].swap_bytes();
-        //}
+        for (size_t k = 0; k < block_headers->size(); ++k) {
+          (*block_headers)[k].swap_bytes();
+        }
         size_t offset = sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * idx_file.blocks_per_file * field;
         fseek(*file, offset, SEEK_SET);
         if (fwrite(&(*block_headers)[0], sizeof(IdxBlockHeader), idx_file.blocks_per_file, *file) != idx_file.blocks_per_file) {
