@@ -8,10 +8,13 @@
 #include "utils.h"
 #include <cstdint>
 #include <condition_variable>
+#include <mutex>
 #include <thread>
+#include <iostream>
 
 namespace hana {
 
+std::mutex write_mutex;
 extern FreelistAllocator<Mallocator> freelist;
 
 /** Copy data from a rectilinear grid to an idx block, assuming the samples in
@@ -86,107 +89,86 @@ Error write_idx_grid_impl(
 
   Error error = Error::NoError;
 
-  size_t num_thread_max = size_t(std::thread::hardware_concurrency());
-  num_thread_max = min(num_thread_max * 2, (size_t)1024);
-  std::thread threads[1024];
-
   /* (read and) write the blocks */
-  for (size_t i = 0; i < idx_blocks->size(); i += num_thread_max) {
-    int thread_count = 0;
-    for (size_t j = 0; j < num_thread_max && i + j < idx_blocks->size(); ++j) {
-      IdxBlock& block = (*idx_blocks)[i + j];
-      uint64_t first_block = 0;
-      int block_in_file = 0;
-      get_first_block_in_file(
-        block.hz_address, idx_file.bits_per_block, idx_file.blocks_per_file, &first_block, &block_in_file);
-      char bin_path[PATH_MAX]; // path to the binary file that stores the block
-      StringRef bin_path_str(STR_REF(bin_path));
-      get_file_name_from_hz(idx_file, time, first_block, bin_path_str);
-      if (first_block != *last_first_block) { // open new file
-        if (*file != nullptr) {
-          fclose(*file);
-        }
-        *file = fopen(bin_path_str.cptr, "rb+");
-      }
-      Error err = Error::NoError;
-      if (*file == nullptr) {
-        err = Error::FileNotFound;
-      }
-      else { // file exists
-        if (*last_first_block != first_block) { // open new file
-          err = read_idx_block(
-            idx_file, field, true, block_in_file, file, block_headers, &block, freelist);
-        }
-        else { // read the currently opened file
-          if ((*block_headers)[block_in_file].offset() > 0) {
-            err = read_idx_block(
-              idx_file, field, false, block_in_file, file, block_headers, &block, freelist);
-          }
-          else {
-            err = Error::BlockNotFound;
-          }
-        }
-      }
-      *last_first_block = first_block;
-      IdxBlockHeader& header = (*block_headers)[block_in_file];
-      if (err == Error::FileNotFound || err == Error::HeaderNotFound || err == Error::BlockNotFound) {
-        if (err == Error::FileNotFound) {
-          size_t last_slash = find_last(bin_path_str, STR_REF("/"));
-          StringRef bin_dir_str = sub_string(bin_path_str, 0, last_slash);
-          if (!dir_exists(bin_dir_str)) {
-            create_full_dir(bin_dir_str);
-          }
-          *file = fopen(bin_path, "ab"); fclose(*file); // create the file it it does not exist
-          *file = fopen(bin_path, "rb+");
-        }
-        block.data = freelist.allocate(block_size);
-        block.bytes = static_cast<uint32_t>(block_size);
-        block.compression = Compression::None;
-        block.type = idx_file.fields[field].type;
-        header.set_bytes(block.bytes);
-        header.set_format(Format::RowMajor);
-        size_t header_size = sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * idx_file.blocks_per_file * idx_file.num_fields;
-        fseek(*file, 0, SEEK_END);
-        size_t file_size = ftell(*file);
-        size_t offset = std::max(header_size, file_size);
-        header.set_offset(static_cast<int64_t>(offset));
-        header.set_compression(block.compression); // TODO
-      }
-      else if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
-        error = err; // critical errors
-        goto END;
-      }
-      if (block.compression != Compression::None) { // TODO
-        error = Error::CompressionUnsupported;
-        goto END;
-      }
-      //threads[thread_count++] = std::thread([&grid, block]() {
-        forward_functor<put_grid_to_block, int>(block.type.bytes(), grid, block);
-      //});
-      /* write the block to disk */
-      fseek(*file, header.offset(), SEEK_SET);
-      if (fwrite(block.data.ptr, block.bytes, 1, *file) != 1) {
-        error = Error::BlockWriteFailed;
-        goto END;
-      }
-
-      /* if i am the last block in the file, write all the block headers for the file */
-      if (block_in_file - first_block + 1 == idx_file.blocks_per_file) {
-        // TODO: what if we never write the last block of the file?
+  for (size_t i = 0; i < idx_blocks->size(); ++i) {
+    IdxBlock& block = (*idx_blocks)[i];
+    uint64_t first_block = 0;
+    int block_in_file = 0;
+    get_first_block_in_file(
+      block.hz_address, idx_file.bits_per_block, idx_file.blocks_per_file, &first_block, &block_in_file);
+    char bin_path[PATH_MAX]; // path to the binary file that stores the block
+    StringRef bin_path_str(STR_REF(bin_path));
+    get_file_name_from_hz(idx_file, time, first_block, bin_path_str);
+    if (first_block != *last_first_block) { // open new file
+      if (*file != nullptr) {
+        // write the headers
         for (size_t k = 0; k < block_headers->size(); ++k) {
           (*block_headers)[k].swap_bytes();
         }
         size_t offset = sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * idx_file.blocks_per_file * field;
         fseek(*file, offset, SEEK_SET);
         if (fwrite(&(*block_headers)[0], sizeof(IdxBlockHeader), idx_file.blocks_per_file, *file) != idx_file.blocks_per_file) {
-          error = Error::HeaderWriteFailed;
-          goto END;
+          return Error::HeaderWriteFailed;
+        }
+        fclose(*file);
+      }
+      *file = fopen(bin_path_str.cptr, "rb+");
+    }
+    Error err = Error::NoError;
+    if (*file == nullptr) {
+      err = Error::FileNotFound;
+    }
+    else { // file exists
+      if (*last_first_block != first_block) { // open new file
+        err = read_idx_block(idx_file, field, true, block_in_file, file, block_headers, &block, freelist);
+      }
+      else { // read the currently opened file
+        if ((*block_headers)[block_in_file].offset() > 0) {
+          err = read_idx_block(idx_file, field, false, block_in_file, file, block_headers, &block, freelist);
+        }
+        else {
+          err = Error::BlockNotFound;
         }
       }
     }
+    *last_first_block = first_block;
+    IdxBlockHeader& header = (*block_headers)[block_in_file];
+    if (err == Error::FileNotFound || err == Error::HeaderNotFound || err == Error::BlockNotFound) {
+      if (err == Error::FileNotFound) {
+        size_t last_slash = find_last(bin_path_str, STR_REF("/"));
+        StringRef bin_dir_str = sub_string(bin_path_str, 0, last_slash);
+        if (!dir_exists(bin_dir_str)) {
+          create_full_dir(bin_dir_str);
+        }
+        *file = fopen(bin_path, "ab"); fclose(*file); // create the file it it does not exist
+        *file = fopen(bin_path, "rb+");
+      }
+      block.data = freelist.allocate(block_size);
+      block.bytes = static_cast<uint32_t>(block_size);
+      block.compression = Compression::None;
+      block.type = idx_file.fields[field].type;
+      header.set_bytes(block.bytes);
+      header.set_format(Format::RowMajor);
+      size_t header_size = sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * idx_file.blocks_per_file * idx_file.num_fields;
+      fseek(*file, 0, SEEK_END);
+      size_t file_size = ftell(*file);
+      size_t offset = std::max(header_size, file_size);
+      header.set_offset(static_cast<int64_t>(offset));
+      header.set_compression(block.compression); // TODO
+    }
+    else if (err == Error::InvalidCompression || err == Error::BlockReadFailed) {
+      return err; // critical errors
+    }
+    if (block.compression != Compression::None) { // TODO
+      return Error::CompressionUnsupported;
+    }
+    forward_functor<put_grid_to_block, int>(block.type.bytes(), grid, block);
+    fseek(*file, header.offset(), SEEK_SET);
+    if (fwrite(block.data.ptr, block.bytes, 1, *file) != 1) {
+      return Error::BlockWriteFailed;
+    }
   }
-END:
-  return error;
+  return Error::NoError;
 }
 
 Error write_idx_grid(
@@ -224,6 +206,18 @@ Error write_idx_grid(
   for (int l = min_hz; l <= max_hz; ++l) {
     error = write_idx_grid_impl(idx_file, field, time, l, grid, &file, &idx_blocks, &block_headers, &last_first_block);
     if (error.code != Error::NoError) {
+      goto END;
+    }
+  }
+  if (file != nullptr) {
+    // write the headers
+    for (size_t k = 0; k < block_headers.size(); ++k) {
+      (block_headers)[k].swap_bytes(); // TODO: maybe swapped twice
+    }
+    size_t offset = sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * idx_file.blocks_per_file * field;
+    fseek(file, offset, SEEK_SET);
+    if (fwrite(&(block_headers)[0], sizeof(IdxBlockHeader), idx_file.blocks_per_file, file) != idx_file.blocks_per_file) {
+      error = Error::HeaderWriteFailed;
       goto END;
     }
   }

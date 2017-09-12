@@ -724,7 +724,8 @@ int main()
   using namespace hana;
   using namespace std::chrono;
   high_resolution_clock::time_point t1 = high_resolution_clock::now();
-  //test_write_idx();
+  test_write_idx();
+  return 0;
   test_get_block_grid();
   test_read_idx_grid_1();
   test_read_idx_grid_2();
