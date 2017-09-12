@@ -519,6 +519,16 @@ int IdxFile::get_num_time_steps() const
   return time.end - time.begin + 1;
 }
 
+void IdxFile::set_bits_per_block(int bps)
+{
+  bits_per_block = bps;
+}
+
+void IdxFile::set_blocks_per_file(int bpf)
+{
+  blocks_per_file = bpf;
+}
+
 bool verify_idx_file(const IdxFile& idx_file)
 {
   if (idx_file.version <= 0) {

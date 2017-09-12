@@ -670,8 +670,62 @@ void test_write_idx()
 {
   Vector3i dims(256, 256, 256);
   IdxFile idx_file;
-  const char* file_path = "test-256x256x256-int32.idx";
+  const char* file_path = "./test/test-256x256x256-int32.idx";
   create_idx_file(dims, 1, "int32", 1, file_path, &idx_file);
+  write_idx_file(file_path, &idx_file);
+
+  int hz_level = idx_file.get_max_hz_level();
+  Grid grid;
+  grid.extent = idx_file.get_logical_extent();
+  grid.data.bytes = idx_file.get_size_inclusive(grid.extent, 0, hz_level);
+  grid.data.ptr = (char*)calloc(grid.data.bytes, 1);
+  int* p = reinterpret_cast<int*>(grid.data.ptr);
+  for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
+    p[i] = i;
+  }
+  write_idx_grid(idx_file, 0, 0, grid);
+
+  /* read back the idx file */
+  IdxFile idx_file_r;
+  Error error_r = read_idx_file(file_path, &idx_file_r);
+  if (error_r.code != Error::NoError) {
+    cout << "Error: " << error_r.get_error_msg() << "\n";
+    return;
+  }
+
+  int field_r = 0;
+  int time_r = idx_file_r.get_min_time_step();
+
+  Grid grid_r;
+  grid_r.extent = idx_file_r.get_logical_extent();
+  grid_r.data.bytes = idx_file_r.get_size_inclusive(grid_r.extent, field_r, hz_level);
+  grid_r.data.ptr = (char*)calloc(grid_r.data.bytes, 1);
+
+  Vector3i from_r, to_r, stride_r;
+  idx_file_r.get_grid_inclusive(grid_r.extent, hz_level, &from_r, &to_r, &stride_r);
+  Vector3i dim_r = (to_r - from_r) / stride_r + 1;
+  cout << "Resulting grid dim = " << dim_r.x << " x " << dim_r.y << " x " << dim_r.z << "\n";
+
+  error_r = read_idx_grid_inclusive(idx_file_r, field_r, time_r, hz_level, &grid);
+  deallocate_memory();
+
+  for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
+    HANA_ASSERT(p[i] == i);
+  }
+
+  if (error_r.code != Error::NoError) {
+    cout << "Error: " << error_r.get_error_msg() << "\n";
+  }
+  return;
+}
+
+void test_write_idx_multiple_files()
+{
+  Vector3i dims(256, 256, 256);
+  IdxFile idx_file;
+  const char* file_path = "./test2/test2-256x256x256-int32.idx";
+  create_idx_file(dims, 1, "int32", 1, file_path, &idx_file);
+  idx_file.set_blocks_per_file(2);
   write_idx_file(file_path, &idx_file);
 
   int hz_level = idx_file.get_max_hz_level();
@@ -724,7 +778,8 @@ int main()
   using namespace hana;
   using namespace std::chrono;
   high_resolution_clock::time_point t1 = high_resolution_clock::now();
-  test_write_idx();
+  //test_write_idx();
+  test_write_idx_multiple_files();
   return 0;
   test_get_block_grid();
   test_read_idx_grid_1();

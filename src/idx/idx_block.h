@@ -29,6 +29,7 @@ struct IdxBlockHeader {
   void set_format(Format);
   /** Swap the byte order in the header (big endian to little endian and vice versa). */
   void swap_bytes();
+  void clear();
 };
 
 struct IdxBlock {

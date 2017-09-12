@@ -163,6 +163,9 @@ struct IdxFile : public detail::IdxFileBase {
   Vector3i get_dims(const Volume& sub_vol, int hz_level) const;
   Vector3i get_dims_inclusive(int hz_level) const;
   Vector3i get_dims_inclusive(const Volume& sub_vol, int hz_level) const;
+
+  void set_bits_per_block(int bps);
+  void set_blocks_per_file(int bpf);
 };
 
 /** Return true if the idx file is valid. */

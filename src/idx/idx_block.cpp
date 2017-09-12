@@ -75,6 +75,13 @@ void IdxBlockHeader::swap_bytes()
   buf[5] = HANA_BYTE_SWAP_4(buf[5]);
 }
 
+void IdxBlockHeader::clear()
+{
+  for (int i = 0; i < 10; ++i) {
+    buf[i] = 0;
+  }
+}
+
 uint64_t IdxBlock::num_samples() const
 {
   Vector3u64 num_samples = (to - from) / stride + 1;

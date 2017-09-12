@@ -101,6 +101,7 @@ Error write_idx_grid_impl(
     get_file_name_from_hz(idx_file, time, first_block, bin_path_str);
     if (first_block != *last_first_block) { // open new file
       if (*file != nullptr) {
+        std::cout << "write header, file " << file << "\n";
         // write the headers
         for (size_t k = 0; k < block_headers->size(); ++k) {
           (*block_headers)[k].swap_bytes();
@@ -109,6 +110,9 @@ Error write_idx_grid_impl(
         fseek(*file, offset, SEEK_SET);
         if (fwrite(&(*block_headers)[0], sizeof(IdxBlockHeader), idx_file.blocks_per_file, *file) != idx_file.blocks_per_file) {
           return Error::HeaderWriteFailed;
+        }
+        for (size_t k = 0; k < block_headers->size(); ++k) {
+          (*block_headers)[k].clear();
         }
         fclose(*file);
       }
@@ -164,6 +168,7 @@ Error write_idx_grid_impl(
     }
     forward_functor<put_grid_to_block, int>(block.type.bytes(), grid, block);
     fseek(*file, header.offset(), SEEK_SET);
+    std::cout << "write block " << block_in_file << "\n";
     if (fwrite(block.data.ptr, block.bytes, 1, *file) != 1) {
       return Error::BlockWriteFailed;
     }
@@ -211,8 +216,9 @@ Error write_idx_grid(
   }
   if (file != nullptr) {
     // write the headers
+    std::cout << "write header, file " << file << "\n";
     for (size_t k = 0; k < block_headers.size(); ++k) {
-      (block_headers)[k].swap_bytes(); // TODO: maybe swapped twice
+      (block_headers)[k].swap_bytes();
     }
     size_t offset = sizeof(IdxFileHeader) + sizeof(IdxBlockHeader) * idx_file.blocks_per_file * field;
     fseek(file, offset, SEEK_SET);
