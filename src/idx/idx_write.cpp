@@ -24,6 +24,7 @@ struct put_grid_to_block {
 void operator()(const Grid& grid, IN_OUT IdxBlock& block)
 {
   Vector3i from, to;
+  // TODO: test this function when the extent is a slice
   if (!intersect_grid(grid.extent, block.from, block.to, block.stride, &from, &to)) {
     return;
   }
@@ -36,17 +37,17 @@ void operator()(const Grid& grid, IN_OUT IdxBlock& block)
   uint64_t sx = output_dims.x, sxy = output_dims.x * output_dims.y;
   Vector3i input_dims = grid.extent.to - grid.extent.from + 1;
   uint64_t dx = input_dims.x, dxy = input_dims.x * input_dims.y;
-  for (int z = from.z,
+  for (int z = from.z - grid.extent.from.z,
     k = (from.z - block.from.z) / block.stride.z; // index into the block's buffer
-    z <= to.z; // loop variable and index into the grid's buffer
+    z <= to.z - grid.extent.from.z; // loop variable and index into the grid's buffer
     z += block.stride.z, ++k) {
-    for (int y = from.y,
+    for (int y = from.y - grid.extent.from.y,
       j = (from.y - block.from.y) / block.stride.y;
-      y <= to.y;
+      y <= to.y - grid.extent.from.y;
       y += block.stride.y, ++j) {
-      for (int x = from.x,
+      for (int x = from.x - grid.extent.from.x,
         i = (from.x - block.from.x) / block.stride.x;
-        x <= to.x;
+        x <= to.x - grid.extent.from.x;
         x += block.stride.x, ++i) {
         uint64_t ijk = i + j * sx + k * sxy;
         uint64_t xyz = x + y * dx + z * dxy;

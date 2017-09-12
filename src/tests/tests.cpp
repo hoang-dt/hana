@@ -684,6 +684,7 @@ void test_write_idx()
     p[i] = i;
   }
   write_idx_grid(idx_file, 0, 0, grid);
+  free(grid.data.ptr);
 
   /* read back the idx file */
   IdxFile idx_file_r;
@@ -699,36 +700,38 @@ void test_write_idx()
   Grid grid_r;
   grid_r.extent = idx_file_r.get_logical_extent();
   grid_r.data.bytes = idx_file_r.get_size_inclusive(grid_r.extent, field_r, hz_level);
+  free(grid.data.ptr);
   grid_r.data.ptr = (char*)calloc(grid_r.data.bytes, 1);
+  p = reinterpret_cast<int*>(grid.data.ptr);
 
   Vector3i from_r, to_r, stride_r;
   idx_file_r.get_grid_inclusive(grid_r.extent, hz_level, &from_r, &to_r, &stride_r);
   Vector3i dim_r = (to_r - from_r) / stride_r + 1;
   cout << "Resulting grid dim = " << dim_r.x << " x " << dim_r.y << " x " << dim_r.z << "\n";
 
-  error_r = read_idx_grid_inclusive(idx_file_r, field_r, time_r, hz_level, &grid);
+  error_r = read_idx_grid_inclusive(idx_file_r, field_r, time_r, hz_level, &grid_r);
   deallocate_memory();
 
   for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
     HANA_ASSERT(p[i] == i);
   }
+  free(grid_r.data.ptr);
 
   if (error_r.code != Error::NoError) {
     cout << "Error: " << error_r.get_error_msg() << "\n";
   }
+
   return;
 }
 
 void test_write_idx_multiple_files()
 {
-  std::cout <<"test\n";
   Vector3i dims(256, 256, 256);
   IdxFile idx_file;
-  const char* file_path = "./test2/test2-256x256x256-int32.idx";
+  const char* file_path = "./test2/test-256x256x256-int32.idx";
   create_idx_file(dims, 1, "int32", 1, file_path, &idx_file);
-  idx_file.set_blocks_per_file(2);
+  idx_file.set_blocks_per_file(4);
   write_idx_file(file_path, &idx_file);
-  std::cout <<"test\n";
 
   int hz_level = idx_file.get_max_hz_level();
   Grid grid;
@@ -740,9 +743,9 @@ void test_write_idx_multiple_files()
     p[i] = i;
   }
 
-  std::cout <<"test\n";
   auto begin = clock();
   write_idx_grid(idx_file, 0, 0, grid);
+  free(grid.data.ptr);
   auto end = clock();
   auto elapsed = (end - begin) / (float)CLOCKS_PER_SEC;
   cout << "Elapsed time = " << elapsed << "s\n";
@@ -762,13 +765,87 @@ void test_write_idx_multiple_files()
   grid_r.extent = idx_file_r.get_logical_extent();
   grid_r.data.bytes = idx_file_r.get_size_inclusive(grid_r.extent, field_r, hz_level);
   grid_r.data.ptr = (char*)calloc(grid_r.data.bytes, 1);
+  p = reinterpret_cast<int*>(grid_r.data.ptr);
 
   Vector3i from_r, to_r, stride_r;
   idx_file_r.get_grid_inclusive(grid_r.extent, hz_level, &from_r, &to_r, &stride_r);
   Vector3i dim_r = (to_r - from_r) / stride_r + 1;
   cout << "Resulting grid dim = " << dim_r.x << " x " << dim_r.y << " x " << dim_r.z << "\n";
 
-  error_r = read_idx_grid_inclusive(idx_file_r, field_r, time_r, hz_level, &grid);
+  error_r = read_idx_grid_inclusive(idx_file_r, field_r, time_r, hz_level, &grid_r);
+  deallocate_memory();
+
+  for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
+    HANA_ASSERT(p[i] == i);
+  }
+  free(grid_r.data.ptr);
+
+  if (error_r.code != Error::NoError) {
+    cout << "Error: " << error_r.get_error_msg() << "\n";
+  }
+
+  return;
+}
+
+void test_write_idx_multiple_writes()
+{
+  Vector3i dims(256, 256, 256);
+  IdxFile idx_file;
+  const char* file_path = "./test3/test-256x256x256-int32.idx";
+  create_idx_file(dims, 1, "int32", 1, file_path, &idx_file);
+  idx_file.set_blocks_per_file(4);
+  write_idx_file(file_path, &idx_file);
+
+  int hz_level = idx_file.get_max_hz_level();
+
+  Grid grid;
+  grid.extent.from = Vector3i(0, 0, 0);
+  grid.extent.to = Vector3i(dims.x-1, dims.y-1, 0);
+  grid.data.bytes = idx_file.get_size_inclusive(grid.extent, 0, hz_level);
+  grid.data.ptr = (char*)calloc(grid.data.bytes, 1);
+  int* p = reinterpret_cast<int*>(grid.data.ptr);
+  std::vector<int> data(dims.x * dims.y *dims.z);
+  for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
+    data[i] = i;
+  }
+  auto begin = clock();
+  for (int z = 0; z < dims.z; ++z) { // write z slices
+    for (int y = 0; y < dims.y; ++y) {
+      for (int x = 0; x < dims.x; ++x) {
+        p[y * dims.x + x] = data[z * dims.x * dims.y + y * dims.x + x];
+      }
+    }
+    grid.extent.from = Vector3i(0, 0, z);
+    grid.extent.to = Vector3i(dims.x-1, dims.y-1, z);
+    write_idx_grid(idx_file, 0, 0, grid);
+  }
+  auto end = clock();
+  auto elapsed = (end - begin) / (float)CLOCKS_PER_SEC;
+  cout << "Elapsed time = " << elapsed << "s\n";
+
+  /* read back the idx file */
+  IdxFile idx_file_r;
+  Error error_r = read_idx_file(file_path, &idx_file_r);
+  if (error_r.code != Error::NoError) {
+    cout << "Error: " << error_r.get_error_msg() << "\n";
+    return;
+  }
+
+  int field_r = 0;
+  int time_r = idx_file_r.get_min_time_step();
+
+  Grid grid_r;
+  grid_r.extent = idx_file_r.get_logical_extent();
+  grid_r.data.bytes = idx_file_r.get_size_inclusive(grid_r.extent, field_r, hz_level);
+  grid_r.data.ptr = (char*)calloc(grid_r.data.bytes, 1);
+  p = reinterpret_cast<int*>(grid_r.data.ptr);
+
+  Vector3i from_r, to_r, stride_r;
+  idx_file_r.get_grid_inclusive(grid_r.extent, hz_level, &from_r, &to_r, &stride_r);
+  Vector3i dim_r = (to_r - from_r) / stride_r + 1;
+  cout << "Resulting grid dim = " << dim_r.x << " x " << dim_r.y << " x " << dim_r.z << "\n";
+
+  error_r = read_idx_grid_inclusive(idx_file_r, field_r, time_r, hz_level, &grid_r);
   deallocate_memory();
 
   for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
@@ -778,6 +855,7 @@ void test_write_idx_multiple_files()
   if (error_r.code != Error::NoError) {
     cout << "Error: " << error_r.get_error_msg() << "\n";
   }
+
   return;
 }
 
@@ -787,7 +865,8 @@ int main()
   using namespace std::chrono;
   high_resolution_clock::time_point t1 = high_resolution_clock::now();
   //test_write_idx();
-  test_write_idx_multiple_files();
+  //test_write_idx_multiple_files();
+  test_write_idx_multiple_writes();
   return 0;
   test_get_block_grid();
   test_read_idx_grid_1();
