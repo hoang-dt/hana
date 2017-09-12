@@ -9,6 +9,7 @@
 namespace hana {
 
 /** Only works for POD types. For other types, use std::vector. */
+// NOTE: elements must be explicitly initialized (they are not initialized to zero or anything)
 template <typename T>
 class Array {
   // for some reasons on GCC 4.8 I can't use static_assert...

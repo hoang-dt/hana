@@ -66,7 +66,6 @@ Error write_idx_grid_impl(
   IN_OUT Array<IdxBlock>* idx_blocks, IN_OUT Array<IdxBlockHeader>* block_headers,
   IN_OUT uint64_t* last_first_block)
 {
-  std::cout << "hz level = " << hz_level << "\n";
   /* check the inputs */
   if (!verify_idx_file(idx_file)) { return Error::InvalidIdxFile; }
   if (field < 0 || field > idx_file.num_fields) { return Error::FieldNotFound; }
@@ -89,13 +88,11 @@ Error write_idx_grid_impl(
 
   /* (read and) write the blocks */
   for (size_t i = 0; i < idx_blocks->size(); ++i) {
-    std::cout << "i = " << i << "\n";
     IdxBlock& block = (*idx_blocks)[i];
     uint64_t first_block = 0;
     int block_in_file = 0;
     get_first_block_in_file(
       block.hz_address, idx_file.bits_per_block, idx_file.blocks_per_file, &first_block, &block_in_file);
-    std::cout << " block in file = " << block_in_file << "\n";
     char bin_path[PATH_MAX]; // path to the binary file that stores the block
     StringRef bin_path_str(STR_REF(bin_path));
     get_file_name_from_hz(idx_file, time, first_block, bin_path_str);
@@ -145,7 +142,7 @@ Error write_idx_grid_impl(
         }
         *file = fopen(bin_path, "ab"); fclose(*file); // create the file it it does not exist
         *file = fopen(bin_path, "rb+");
-        if (*file != nullptr) {
+        if (*file == nullptr) {
           return Error::FileNotFound;
         }
       }
@@ -177,6 +174,7 @@ Error write_idx_grid_impl(
   return Error::NoError;
 }
 
+// TODO?
 Error write_idx_grid(
   const IdxFile& idx_file, int field, int time, int hz_level, const Grid& grid)
 {
@@ -201,6 +199,9 @@ Error write_idx_grid(
   Array<IdxBlock> idx_blocks(&mallocator);
   Array<IdxBlockHeader> block_headers(&mallocator); // all headers for one file
   block_headers.resize(idx_file.blocks_per_file);
+  for (int i = 0; i < block_headers.size(); ++i) {
+    block_headers[i].clear();
+  }
   int min_hz = idx_file.get_min_hz_level();
   int max_hz = idx_file.get_max_hz_level();
   FILE* file = nullptr;
@@ -217,7 +218,6 @@ Error write_idx_grid(
   }
   if (file != nullptr) {
     // write the headers
-    std::cout << "write header, file " << file << "\n";
     for (size_t k = 0; k < block_headers.size(); ++k) {
       (block_headers)[k].swap_bytes();
     }

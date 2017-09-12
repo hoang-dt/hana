@@ -693,7 +693,7 @@ void create_idx_file(
   idx_file->logic_to_physic; // nothing to do
   idx_file->time.begin = 0;
   idx_file->time.end = num_time_steps - 1;
-  sprintf(idx_file->time.template_, "%s", "%06d");
+  sprintf(idx_file->time.template_, "%s", "time%06d/");
   idx_file->num_fields = num_fields;
   for (int i = 0; i < num_fields; ++i) {
     IdxField& field = idx_file->fields[i];
