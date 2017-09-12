@@ -721,12 +721,14 @@ void test_write_idx()
 
 void test_write_idx_multiple_files()
 {
+  std::cout <<"test\n";
   Vector3i dims(256, 256, 256);
   IdxFile idx_file;
   const char* file_path = "./test2/test2-256x256x256-int32.idx";
   create_idx_file(dims, 1, "int32", 1, file_path, &idx_file);
   idx_file.set_blocks_per_file(2);
   write_idx_file(file_path, &idx_file);
+  std::cout <<"test\n";
 
   int hz_level = idx_file.get_max_hz_level();
   Grid grid;
@@ -737,7 +739,13 @@ void test_write_idx_multiple_files()
   for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
     p[i] = i;
   }
+
+  std::cout <<"test\n";
+  auto begin = clock();
   write_idx_grid(idx_file, 0, 0, grid);
+  auto end = clock();
+  auto elapsed = (end - begin) / (float)CLOCKS_PER_SEC;
+  cout << "Elapsed time = " << elapsed << "s\n";
 
   /* read back the idx file */
   IdxFile idx_file_r;

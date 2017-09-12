@@ -660,6 +660,12 @@ Error write_idx_file(const char* file_path, OUT IdxFile* idx_file)
     idx_file->absolute_path.construct_from(file_path_ref);
   }
   idx_file->absolute_path.remove_last(); // remove the file name
+  /* create the directory hierarchy to the idx file if not existed */
+  size_t pos = find_last(file_path_ref, StringRef("/"));
+  if (pos != size_t(-1)) {
+    StringRef dir_hierarchy = sub_string(file_path_ref, 0, pos);
+    create_full_dir(dir_hierarchy);
+  }
   std::ofstream output(file_path_ref.ptr);
   if (!output) {
     return Error::FileNotFound;

@@ -14,7 +14,6 @@
 
 namespace hana {
 
-std::mutex write_mutex;
 extern FreelistAllocator<Mallocator> freelist;
 
 /** Copy data from a rectilinear grid to an idx block, assuming the samples in
@@ -58,8 +57,6 @@ void operator()(const Grid& grid, IN_OUT IdxBlock& block)
 }
 };
 
-std::condition_variable cv;
-
 /* Write an IDX grid at one particular HZ level.
 TODO: this function overlaps quite a bit with read_idx_grid. */
 // TODO: remove the last_first_block parameter and replace with simple modulo check
@@ -69,6 +66,7 @@ Error write_idx_grid_impl(
   IN_OUT Array<IdxBlock>* idx_blocks, IN_OUT Array<IdxBlockHeader>* block_headers,
   IN_OUT uint64_t* last_first_block)
 {
+  std::cout << "hz level = " << hz_level << "\n";
   /* check the inputs */
   if (!verify_idx_file(idx_file)) { return Error::InvalidIdxFile; }
   if (field < 0 || field > idx_file.num_fields) { return Error::FieldNotFound; }
@@ -91,17 +89,18 @@ Error write_idx_grid_impl(
 
   /* (read and) write the blocks */
   for (size_t i = 0; i < idx_blocks->size(); ++i) {
+    std::cout << "i = " << i << "\n";
     IdxBlock& block = (*idx_blocks)[i];
     uint64_t first_block = 0;
     int block_in_file = 0;
     get_first_block_in_file(
       block.hz_address, idx_file.bits_per_block, idx_file.blocks_per_file, &first_block, &block_in_file);
+    std::cout << " block in file = " << block_in_file << "\n";
     char bin_path[PATH_MAX]; // path to the binary file that stores the block
     StringRef bin_path_str(STR_REF(bin_path));
     get_file_name_from_hz(idx_file, time, first_block, bin_path_str);
     if (first_block != *last_first_block) { // open new file
       if (*file != nullptr) {
-        std::cout << "write header, file " << file << "\n";
         // write the headers
         for (size_t k = 0; k < block_headers->size(); ++k) {
           (*block_headers)[k].swap_bytes();
@@ -146,6 +145,9 @@ Error write_idx_grid_impl(
         }
         *file = fopen(bin_path, "ab"); fclose(*file); // create the file it it does not exist
         *file = fopen(bin_path, "rb+");
+        if (*file != nullptr) {
+          return Error::FileNotFound;
+        }
       }
       block.data = freelist.allocate(block_size);
       block.bytes = static_cast<uint32_t>(block_size);
@@ -168,7 +170,6 @@ Error write_idx_grid_impl(
     }
     forward_functor<put_grid_to_block, int>(block.type.bytes(), grid, block);
     fseek(*file, header.offset(), SEEK_SET);
-    std::cout << "write block " << block_in_file << "\n";
     if (fwrite(block.data.ptr, block.bytes, 1, *file) != 1) {
       return Error::BlockWriteFailed;
     }
