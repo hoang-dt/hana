@@ -3,8 +3,9 @@ add_library(hana
             filesystem.h io.h logger.h macros.h math.h scope_guard.h streams.h string.h
             time.h types.h utils.h vector.h miniz.h
             assert.cpp error.cpp filesystem.cpp logger.cpp string.cpp time.cpp
-            error.h idx.h idx_block.h idx_file.h types.h utils.h
-            error.cpp idx.cpp idx_block.cpp idx_file.cpp types.cpp utils.cpp miniz.c)
+            error.h idx.h idx_block.h idx_common.h idx_file.h types.h utils.h
+            error.cpp idx.cpp idx_block.cpp idx_common.cpp idx_file.cpp idx_write.cpp
+            types.cpp utils.cpp miniz.c)
 target_link_libraries(hana ${CMAKE_THREAD_LIBS_INIT})
 
 set(IDX_HEADERS
