@@ -810,7 +810,8 @@ void test_write_idx_multiple_writes()
   for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
     data[i] = i;
   }
-  auto begin = clock();
+
+  float elapsed = 0;
   for (int zz = 0; zz < dims.z; zz += dims.z / 4) { // write z slices
     for (int z = zz; z < zz + dims.z / 4; ++z) {
       for (int y = 0; y < dims.y; ++y) {
@@ -821,11 +822,12 @@ void test_write_idx_multiple_writes()
     }
     grid.extent.from = Vector3i(0, 0, zz);
     grid.extent.to = Vector3i(dims.x-1, dims.y-1, zz + dims.z / 4 - 1);
-    std::cout << "writing \n";
+    //std::cout << "writing \n";
+    auto begin = clock();
     write_idx_grid(idx_file, 0, 0, grid);
+    auto end = clock();
+    elapsed += (end - begin) / (float)CLOCKS_PER_SEC;
   }
-  auto end = clock();
-  auto elapsed = (end - begin) / (float)CLOCKS_PER_SEC;
   cout << "Elapsed time = " << elapsed << "s\n";
 
   /* read back the idx file */
@@ -855,6 +857,9 @@ void test_write_idx_multiple_writes()
 
   for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
     HANA_ASSERT(p[i] == i);
+    if (p[i] != i) {
+      std::cout << "wrong\n";
+    }
   }
 
   if (error_r.code != Error::NoError) {
