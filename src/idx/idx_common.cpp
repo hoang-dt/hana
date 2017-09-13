@@ -182,10 +182,12 @@ Error read_idx_block(
     if (fread(&(*block_headers)[0], sizeof(IdxBlockHeader), idx_file.blocks_per_file, *file) != idx_file.blocks_per_file) {
       return Error::HeaderNotFound;
     }
+    for (size_t i = 0; i < block_headers->size(); ++i) {
+      (*block_headers)[i].swap_bytes();
+    }
   }
 
   IdxBlockHeader& header = (*block_headers)[block_in_file];
-  header.swap_bytes();
   int64_t block_offset = header.offset();
   block->bytes = header.bytes();
   if (block_offset == 0 || block->bytes == 0) {

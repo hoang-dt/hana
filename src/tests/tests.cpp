@@ -726,11 +726,12 @@ void test_write_idx()
 
 void test_write_idx_multiple_files()
 {
-  Vector3i dims(256, 256, 256);
+  Vector3i dims(4, 4, 4);
   IdxFile idx_file;
   const char* file_path = "./test2/test-256x256x256-int32.idx";
   create_idx_file(dims, 1, "int32", 1, file_path, &idx_file);
-  idx_file.set_blocks_per_file(4);
+  idx_file.set_bits_per_block(6);
+  idx_file.set_blocks_per_file(1);
   write_idx_file(file_path, &idx_file);
 
   int hz_level = idx_file.get_max_hz_level();
@@ -793,6 +794,7 @@ void test_write_idx_multiple_writes()
   IdxFile idx_file;
   const char* file_path = "./test3/test-256x256x256-int32.idx";
   create_idx_file(dims, 1, "int32", 1, file_path, &idx_file);
+  idx_file.set_bits_per_block(20);
   idx_file.set_blocks_per_file(4);
   write_idx_file(file_path, &idx_file);
 
@@ -800,7 +802,7 @@ void test_write_idx_multiple_writes()
 
   Grid grid;
   grid.extent.from = Vector3i(0, 0, 0);
-  grid.extent.to = Vector3i(dims.x-1, dims.y-1, 0);
+  grid.extent.to = Vector3i(dims.x-1, dims.y-1, dims.z/4-1);
   grid.data.bytes = idx_file.get_size_inclusive(grid.extent, 0, hz_level);
   grid.data.ptr = (char*)calloc(grid.data.bytes, 1);
   int* p = reinterpret_cast<int*>(grid.data.ptr);
@@ -809,14 +811,17 @@ void test_write_idx_multiple_writes()
     data[i] = i;
   }
   auto begin = clock();
-  for (int z = 0; z < dims.z; ++z) { // write z slices
-    for (int y = 0; y < dims.y; ++y) {
-      for (int x = 0; x < dims.x; ++x) {
-        p[y * dims.x + x] = data[z * dims.x * dims.y + y * dims.x + x];
+  for (int zz = 0; zz < dims.z; zz += dims.z / 4) { // write z slices
+    for (int z = zz; z < zz + dims.z / 4; ++z) {
+      for (int y = 0; y < dims.y; ++y) {
+        for (int x = 0; x < dims.x; ++x) {
+          p[(z-zz) * dims.x * dims.y + y * dims.x + x] = data[z * dims.x * dims.y + y * dims.x + x];
+        }
       }
     }
-    grid.extent.from = Vector3i(0, 0, z);
-    grid.extent.to = Vector3i(dims.x-1, dims.y-1, z);
+    grid.extent.from = Vector3i(0, 0, zz);
+    grid.extent.to = Vector3i(dims.x-1, dims.y-1, zz + dims.z / 4 - 1);
+    std::cout << "writing \n";
     write_idx_grid(idx_file, 0, 0, grid);
   }
   auto end = clock();
