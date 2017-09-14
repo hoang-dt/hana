@@ -17,7 +17,7 @@ is ./%02x/%01x/%01x.bin, then the binary file name is ./45/2/c.bin, assuming
 there is no time step template (4 = 0100, 5 = 0101, 2 = 0010, and c = 1100).
 The time step template, if present, will be added to the beginning of the path. */
 void get_file_name_from_hz(
-  const IdxFile& idx_file, int time, uint64_t hz_address, OUT StringRef file_name)
+  const IdxFile& idx_file, int time, uint64_t hz_address, OUT StringRef& file_name)
 {
   // TODO: we can optimize a little more by "pre-building" the static parts
   // of the file name and just fill in the templated parts
@@ -54,7 +54,8 @@ void get_file_name_from_hz(
   --pos; // remove the last '/'
 
   // add the file extension at the end (e.g. ".bin")
-  snprintf(file_name.ptr + pos, file_name.size - pos, "%s", name_template.ext);
+  int ext = snprintf(file_name.ptr + pos, file_name.size - pos, "%s", name_template.ext);
+  file_name.size = pos + ext;
   --pos;
 
   // build the template parts backwards (%03x/%04x...)

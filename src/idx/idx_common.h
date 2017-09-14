@@ -8,7 +8,7 @@ class StringRef;
 
 namespace hana {
   void get_file_name_from_hz(
-    const IdxFile& idx_file, int time, uint64_t hz_address, OUT StringRef file_name);
+    const IdxFile& idx_file, int time, uint64_t hz_address, OUT StringRef& file_name);
 
   void get_block_addresses(
     const IdxFile& idx_file, const Volume& vol, int hz_level, OUT Array<IdxBlock>* idx_blocks);

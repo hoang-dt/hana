@@ -68,7 +68,6 @@ Error write_idx_grid_impl(
   IN_OUT Array<IdxBlock>* idx_blocks, IN_OUT Array<IdxBlockHeader>* block_headers,
   IN_OUT uint64_t* last_first_block)
 {
-  //std::cout << "write idx grid impl\n";
   /* check the inputs */
   if (!verify_idx_file(idx_file)) { return Error::InvalidIdxFile; }
   if (field < 0 || field > idx_file.num_fields) { return Error::FieldNotFound; }
@@ -102,10 +101,6 @@ Error write_idx_grid_impl(
     if (first_block != *last_first_block) { // open new file
       if (*file != nullptr) {
         // write the headers
-        //std::cout << "write headers\n";
-        //for (int k = 0; k < block_headers->size(); ++k) {
-        //  std::cout << k << " " << (*block_headers)[k].offset() << " " << (*block_headers)[k].bytes() << "\n";
-        //}
         for (size_t k = 0; k < block_headers->size(); ++k) {
           (*block_headers)[k].swap_bytes();
         }
@@ -127,19 +122,11 @@ Error write_idx_grid_impl(
     }
     else { // file exists
       if (*last_first_block != first_block) { // open new file
-        //std::cout << "read new file\n";
         err = read_idx_block(idx_file, field, true, block_in_file, file, block_headers, &block, freelist);
-        //for (int k = 0; k < block_headers->size(); ++k) {
-        //  std::cout << k << " " << (*block_headers)[k].offset() << " " << (*block_headers)[k].bytes() << "\n";
-        //}
       }
       else { // read the currently opened file
-        //std::cout << "read currently opened file\n";
         if ((*block_headers)[block_in_file].offset() > 0) {
           err = read_idx_block(idx_file, field, false, block_in_file, file, block_headers, &block, freelist);
-          //for (int k = 0; k < block_headers->size(); ++k) {
-          //  std::cout << k << " " << (*block_headers)[k].offset() << " " << (*block_headers)[k].bytes() << "\n";
-          //}
         }
         else {
           err = Error::BlockNotFound;
@@ -156,6 +143,7 @@ Error write_idx_grid_impl(
           create_full_dir(bin_dir_str);
         }
         std::ofstream f(bin_path, std::ios::binary); f.close();
+        f.close();
         *file = fopen(bin_path, "rb+");
         if (*file == nullptr) {
           return Error::FileNotFound;
@@ -180,11 +168,8 @@ Error write_idx_grid_impl(
     if (block.compression != Compression::None) { // TODO
       return Error::CompressionUnsupported;
     }
-    //std::cout << "writing block\n";
-    //std::cout << block.bytes << "\n";
     forward_functor<put_grid_to_block, int>(block.type.bytes(), grid, block);
     fseek(*file, header.offset(), SEEK_SET);
-    //std::cout << "writing block\n";
     if (fwrite(block.data.ptr, block.bytes, 1, *file) != 1) {
       return Error::BlockWriteFailed;
     }
@@ -235,10 +220,6 @@ Error write_idx_grid(
   }
   if (file != nullptr) {
     // write the headers
-    //std::cout << "write headers\n";
-    //for (int k = 0; k < block_headers.size(); ++k) {
-    //  std::cout << k << " " << (block_headers)[k].offset() << " " << (block_headers)[k].bytes() << "\n";
-    //}
     for (size_t k = 0; k < block_headers.size(); ++k) {
       (block_headers)[k].swap_bytes();
     }
