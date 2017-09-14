@@ -870,6 +870,57 @@ void test_write_idx_multiple_writes()
   return;
 }
 
+void test_read_idx_performance()
+{
+  auto begin = clock();
+  cout << "Test performance" << endl;
+
+  IdxFile idx_file;
+
+  Error error = read_idx_file("E:/Workspace/IdxBenchmark/x64/Release/tutorial_1 - Copy.idx", &idx_file);
+  if (error.code != Error::NoError) {
+    cout << "Error: " << error.get_error_msg() << "\n";
+    return;
+  }
+
+  int hz_level = idx_file.get_max_hz_level();
+  int field = idx_file.get_field_index("myfield");
+  int time = idx_file.get_min_time_step();
+
+  Grid grid;
+  grid.extent = idx_file.get_logical_extent();
+  grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
+  grid.data.ptr = (char*)malloc(grid.data.bytes);
+
+  Vector3i from, to, stride;
+  idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
+  Vector3i dim = (to - from) / stride + 1;
+  cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
+
+  error = read_idx_grid_inclusive(idx_file, field, time, hz_level, &grid);
+  deallocate_memory();
+
+  if (error.code != Error::NoError) {
+    cout << "Error: " << error.get_error_msg() << "\n";
+    return;
+  }
+
+  //string hash = md5(grid.data.ptr, (long) grid.data.bytes);
+  //cout << "MD5 = " << hash<< "\n";
+  //HANA_ASSERT(hash == "b17f827b14d064cf1913dec906484733");
+  //uint32_t* p = reinterpret_cast<uint32_t*>(grid.data.ptr);
+  //for (int i = 0; i < 256*256*256; ++i) {
+  //  if (p[i] != i) {
+  //    std::cout << "wrong\n";
+  //  }
+  //}
+
+  free(grid.data.ptr);
+  auto end = clock();
+  auto elapsed = (end - begin) / (float)CLOCKS_PER_SEC;
+  std::cout << "Elapsed time = " << elapsed << "s\n";
+}
+
 int main()
 {
   using namespace hana;
@@ -877,7 +928,8 @@ int main()
   high_resolution_clock::time_point t1 = high_resolution_clock::now();
   //test_write_idx();
   //test_write_idx_multiple_files();
-  test_write_idx_multiple_writes();
+  //test_write_idx_multiple_writes();
+  test_read_idx_performance();
   return 0;
   test_get_block_grid();
   test_read_idx_grid_1();
