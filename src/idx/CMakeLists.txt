@@ -12,7 +12,7 @@ set(IDX_HEADERS
     allocator.h array.h assert.h bitops.h constants.h debugbreak.h
     error.h filesystem.h logger.h io.h macros.h scope_guard.h
     streams.h string.h time.h types.h utils.h vector.h math.h
-    error.h idx.h idx_block.h idx_file.h types.h utils.h)
+    error.h idx.h idx_block.h idx_file.h idx_common.h timer.h types.h utils.h)
 set_target_properties(hana PROPERTIES
     PUBLIC_HEADER "${IDX_HEADERS}"
     POSITION_INDEPENDENT_CODE ON

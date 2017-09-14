@@ -1,6 +1,7 @@
 #include <idx/math.h>
 #include <idx/idx.h>
 #include <idx/idx_file.h>
+#include <idx/timer.h>
 #include "md5.h"
 #include <cstdlib>
 #include <ctime>
@@ -790,17 +791,17 @@ void test_write_idx_multiple_files()
 
 void test_write_idx_multiple_writes()
 {
-  Vector3i dims(256, 256, 256);
+  Vector3i dims(1024, 1024, 1024);
   IdxFile idx_file;
   const char* file_path = "./test3/test-256x256x256-int32.idx";
   create_idx_file(dims, 1, "int32", 1, file_path, &idx_file);
-  idx_file.set_bits_per_block(24);
-  idx_file.set_blocks_per_file(1);
+  idx_file.set_bits_per_block(16);
+  idx_file.set_blocks_per_file(256);
   write_idx_file(file_path, &idx_file);
 
   int hz_level = idx_file.get_max_hz_level();
 
-  int num_slices = 256;
+  int num_slices = 1;
   Grid grid;
   grid.extent.from = Vector3i(0, 0, 0);
   grid.extent.to = Vector3i(dims.x-1, dims.y-1, dims.z / num_slices - 1);
@@ -873,6 +874,7 @@ void test_write_idx_multiple_writes()
 void test_read_idx_performance()
 {
   auto begin = clock();
+  Timer timer(true);
   cout << "Test performance" << endl;
 
   IdxFile idx_file;
@@ -908,16 +910,15 @@ void test_read_idx_performance()
   //string hash = md5(grid.data.ptr, (long) grid.data.bytes);
   //cout << "MD5 = " << hash<< "\n";
   //HANA_ASSERT(hash == "b17f827b14d064cf1913dec906484733");
-  //uint32_t* p = reinterpret_cast<uint32_t*>(grid.data.ptr);
-  //for (int i = 0; i < 256*256*256; ++i) {
-  //  if (p[i] != i) {
-  //    std::cout << "wrong\n";
-  //  }
-  //}
+  uint32_t* p = reinterpret_cast<uint32_t*>(grid.data.ptr);
+  for (int i = 0; i < 256*256*256; ++i) {
+    if (p[i] != i) {
+      std::cout << "wrong\n";
+    }
+  }
 
   free(grid.data.ptr);
-  auto end = clock();
-  auto elapsed = (end - begin) / (float)CLOCKS_PER_SEC;
+  double elapsed = timer.elapsed();
   std::cout << "Elapsed time = " << elapsed << "s\n";
 }
 
@@ -928,8 +929,8 @@ int main()
   high_resolution_clock::time_point t1 = high_resolution_clock::now();
   //test_write_idx();
   //test_write_idx_multiple_files();
-  //test_write_idx_multiple_writes();
-  test_read_idx_performance();
+  test_write_idx_multiple_writes();
+  //test_read_idx_performance();
   return 0;
   test_get_block_grid();
   test_read_idx_grid_1();
