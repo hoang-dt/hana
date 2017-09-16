@@ -161,7 +161,11 @@ bool is_relative_path(StringRef path)
   return true;
 }
 
+#if defined(_WIN32)
 #include <windows.h>
+#else
+#include <sys/stat.h>
+#endif
 bool create_full_dir(StringRef path)
 {
   char path_copy[PATH_MAX];

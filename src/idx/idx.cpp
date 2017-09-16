@@ -398,18 +398,23 @@ Error read_idx_grid_inclusive(
   Error error = read_idx_grid_impl(
     idx_file, field, time, idx_file.get_min_hz_level()-1, from, to, stride, &file, &idx_blocks,
     &block_headers, grid, &last_first_block);
-  if (error.code != Error::NoError) {
-    goto END;
+  if (error.code != Error::NoError) {    
+    if (file != nullptr) {
+      fclose(file);
+    } 
+    return error;
   }
   int min_hz = idx_file.get_min_hz_level();
   for (int l = min_hz; l <= hz_level; ++l) {
     error = read_idx_grid_impl(
       idx_file, field, time, l, from, to, stride, &file, &idx_blocks, &block_headers, grid, &last_first_block);
     if (error.code!=Error::NoError && error.code!=Error::BlockNotFound && error.code!=Error::FileNotFound) {
-      goto END;
+      if (file != nullptr) {
+        fclose(file);
+      }
+      return error;
     }
   }
-END:
   if (file != nullptr) {
     fclose(file);
   }

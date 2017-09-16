@@ -791,7 +791,7 @@ void test_write_idx_multiple_files()
 
 void test_write_idx_multiple_writes()
 {
-  Vector3i dims(1024, 1024, 1024);
+  Vector3i dims(512, 512, 512);
   IdxFile idx_file;
   const char* file_path = "./test3/test-256x256x256-int32.idx";
   create_idx_file(dims, 1, "int32", 1, file_path, &idx_file);
@@ -801,7 +801,7 @@ void test_write_idx_multiple_writes()
 
   int hz_level = idx_file.get_max_hz_level();
 
-  int num_slices = 1;
+  int num_slices = 16;
   Grid grid;
   grid.extent.from = Vector3i(0, 0, 0);
   grid.extent.to = Vector3i(dims.x-1, dims.y-1, dims.z / num_slices - 1);
