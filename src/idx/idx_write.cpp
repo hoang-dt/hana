@@ -171,8 +171,10 @@ Error write_idx_grid_impl(
     forward_functor<put_grid_to_block, int>(block.type.bytes(), grid, block);
     fseek(*file, header.offset(), SEEK_SET);
     if (fwrite(block.data.ptr, block.bytes, 1, *file) != 1) {
+      freelist.deallocate(block.data);
       return Error::BlockWriteFailed;
     }
+    freelist.deallocate(block.data);
   }
   return Error::NoError;
 }

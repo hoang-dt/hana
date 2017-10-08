@@ -791,7 +791,7 @@ void test_write_idx_multiple_files()
 
 void test_write_idx_multiple_writes()
 {
-  Vector3i dims(512, 512, 512);
+  Vector3i dims(1024, 1024, 1024);
   IdxFile idx_file;
   const char* file_path = "./test3/test-256x256x256-int32.idx";
   create_idx_file(dims, 1, "int32", 1, file_path, &idx_file);
