@@ -219,9 +219,7 @@ Error read_idx_file(std::istream& input, IdxFile* idx_file)
       input >> idx_file->box.from.x >> idx_file->box.to.x;
       input >> idx_file->box.from.y >> idx_file->box.to.y;
       input >> idx_file->box.from.z >> idx_file->box.to.z;
-      int temp;
-      input >> temp >> temp >> temp >> temp; // who cares about 4th and 5th dimensions?
-      input.ignore();
+      input.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
     else if (STRING_EQUAL(line, bits_)) { // bits
       input >> idx_file->bits;
