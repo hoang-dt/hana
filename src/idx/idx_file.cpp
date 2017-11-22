@@ -706,7 +706,7 @@ void create_idx_file(
   }
 
   idx_file->bits[0] = 'V';
-  idx_file->bit_string = StringRef(idx_file->bits + 1);
+  idx_file->bit_string = StringRef(idx_file->bits + 1, IdxFile::num_bits_max - 1);
   guess_bit_string(dims, idx_file->bit_string);
   int pow2_x = pow_greater_equal(2, dims.x);
   int pow2_y = pow_greater_equal(2, dims.y);
