@@ -398,10 +398,10 @@ Error read_idx_grid_inclusive(
   Error error = read_idx_grid_impl(
     idx_file, field, time, idx_file.get_min_hz_level()-1, from, to, stride, &file, &idx_blocks,
     &block_headers, grid, &last_first_block);
-  if (error.code != Error::NoError) {    
+  if (error.code != Error::NoError) {
     if (file != nullptr) {
       fclose(file);
-    } 
+    }
     return error;
   }
   int min_hz = idx_file.get_min_hz_level();

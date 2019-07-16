@@ -12,7 +12,7 @@ const T* power(T base)
 {
   static T memoir[N] = { 0 };
   memoir[0] = 1;
-  for (int i = 1; i <= N; ++i) {
+  for (int i = 1; i < N; ++i) {
     memoir[i] = memoir[i - 1] * base;
   }
   return memoir;

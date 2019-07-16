@@ -717,7 +717,8 @@ void create_idx_file(
   idx_file->bits_per_block = log_int(2, 1024 * 1024);
   int samples_per_block = pow2[idx_file->bits_per_block];
   if (samples_per_block > int64_t(dims.x)*int64_t(dims.y)*int64_t(dims.z)) {
-    idx_file->bits_per_block = log_int(2, int64_t(pow2_x) * int64_t(pow2_y) * int64_t(pow2_z));
+    // TODO: this means we cannot have a 1x1x1 data set
+    idx_file->bits_per_block = log_int(2, int64_t(pow2_x) * int64_t(pow2_y) * int64_t(pow2_z)) - 1;
     samples_per_block = pow2[idx_file->bits_per_block];
   }
   int num_blocks = static_cast<int>(total_samples / samples_per_block);

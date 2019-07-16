@@ -41,6 +41,11 @@ passing in the maximum hz_level possible. */
 Error read_idx_grid_inclusive(
   const IdxFile& idx_file, int field, int time, int hz_level, IN_OUT Grid* grid);
 
+template <typename t>
+Error copy_grid(
+  const Vector3i& srcFrom, const Vector3i& srcTo, const Vector3i& srcStride, const Grid& src,
+  const Vector3i& dstFrom, const Vector3i& dstTo, const Vector3i& dstStride, IN_OUT Grid* dst);
+
 /** Write a raw array in memory into an IDX file on disk. The blocks and levels
 are determined automatically. The input grid does not have to be of the same
 dimensions as the dimensions specified in the IDX file. If read is true, the
@@ -52,3 +57,5 @@ Error write_idx_grid(
 void deallocate_memory();
 
 }
+
+#include "idx.inl"

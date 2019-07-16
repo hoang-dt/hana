@@ -23,14 +23,14 @@ void test_read_idx_grid_1()
 
   IdxFile idx_file;
 
-  Error error = read_idx_file("../../../../data/flame_small_heat.idx", &idx_file);
+  Error error = read_idx_file("D:/Datasets/foam/foam.idx", &idx_file);
   if (error.code != Error::NoError) {
     cout << "Error: " << error.get_error_msg() << "\n";
     return;
   }
 
   int hz_level = idx_file.get_max_hz_level();
-  int field = idx_file.get_field_index("heat");
+  int field = idx_file.get_field_index("dist");
   int time = idx_file.get_min_time_step();
 
   Grid grid;
@@ -44,6 +44,9 @@ void test_read_idx_grid_1()
   cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
 
   error = read_idx_grid_inclusive(idx_file, field, time, hz_level, &grid);
+  FILE* fp = fopen("foam.raw", "w");
+  fwrite(grid.data.ptr, grid.data.bytes, 1, fp);
+  fclose(fp);
   deallocate_memory();
 
   if (error.code != Error::NoError) {
@@ -669,10 +672,10 @@ void test_get_block_grid()
 
 void test_write_idx()
 {
-  Vector3i dims(256, 256, 256);
+  Vector3i dims(4, 4, 1);
   IdxFile idx_file;
-  const char* file_path = "./test/test-256x256x256-int32.idx";
-  create_idx_file(dims, 1, "int32", 1, file_path, &idx_file);
+  const char* file_path = "./test-4x4-int8.idx";
+  create_idx_file(dims, 1, "int8", 1, file_path, &idx_file);
   write_idx_file(file_path, &idx_file);
 
   int hz_level = idx_file.get_max_hz_level();
@@ -680,9 +683,10 @@ void test_write_idx()
   grid.extent = idx_file.get_logical_extent();
   grid.data.bytes = idx_file.get_size_inclusive(grid.extent, 0, hz_level);
   grid.data.ptr = (char*)calloc(grid.data.bytes, 1);
-  int* p = reinterpret_cast<int*>(grid.data.ptr);
+  int8_t* p = reinterpret_cast<int8_t*>(grid.data.ptr);
   for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
     p[i] = i;
+    printf("%d\n", int(p[i]));
   }
   write_idx_grid(idx_file, 0, 0, grid);
   free(grid.data.ptr);
@@ -701,9 +705,8 @@ void test_write_idx()
   Grid grid_r;
   grid_r.extent = idx_file_r.get_logical_extent();
   grid_r.data.bytes = idx_file_r.get_size_inclusive(grid_r.extent, field_r, hz_level);
-  free(grid.data.ptr);
   grid_r.data.ptr = (char*)calloc(grid_r.data.bytes, 1);
-  p = reinterpret_cast<int*>(grid.data.ptr);
+  p = reinterpret_cast<int8_t*>(grid_r.data.ptr);
 
   Vector3i from_r, to_r, stride_r;
   idx_file_r.get_grid_inclusive(grid_r.extent, hz_level, &from_r, &to_r, &stride_r);
@@ -711,18 +714,19 @@ void test_write_idx()
   cout << "Resulting grid dim = " << dim_r.x << " x " << dim_r.y << " x " << dim_r.z << "\n";
 
   error_r = read_idx_grid_inclusive(idx_file_r, field_r, time_r, hz_level, &grid_r);
-  deallocate_memory();
 
   for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
-    HANA_ASSERT(p[i] == i);
+    //HANA_ASSERT(p[i] == i);
+    printf("%d\n", int(p[i]));
   }
   free(grid_r.data.ptr);
+  deallocate_memory();
 
   if (error_r.code != Error::NoError) {
     cout << "Error: " << error_r.get_error_msg() << "\n";
   }
 
-  return;
+  //return;
 }
 
 void test_write_idx_multiple_files()
@@ -922,17 +926,81 @@ void test_read_idx_performance()
   std::cout << "Elapsed time = " << elapsed << "s\n";
 }
 
+void test_read_idx_grid_manual_progressive()
+{
+  cout << "Test manual progressive" << endl;
+
+  IdxFile idx_file;
+
+  Error error = read_idx_file("../../../../data/flame_small_heat.idx", &idx_file);
+  //Error error = read_idx_file("./test-4x4-int8.idx", &idx_file);
+  if (error.code != Error::NoError) {
+    cout << "Error: " << error.get_error_msg() << "\n";
+    return;
+  }
+
+  int min_hz_level = idx_file.get_min_hz_level(); // can start from any level >= min_hz_level
+  int max_hz_level = idx_file.get_max_hz_level();
+  int field = idx_file.get_field_index("heat");
+  int time = idx_file.get_max_time_step();
+  Grid grid, gridNext;
+  /* the data is 128x64x64 but we are querying for only a sub-volume */
+  grid.extent.from = gridNext.extent.from = Vector3i(18, 18, 18);
+  grid.extent.to = gridNext.extent.to = Vector3i(96, 48, 48);
+  for (int hz = min_hz_level; hz <= max_hz_level; ++hz) {
+    Vector3i from, to, stride;
+    idx_file.get_grid_inclusive(grid.extent, hz, &from, &to, &stride);
+    Vector3i dim = (to - from) / stride + 1;
+    if (hz > min_hz_level) { // not the coarsest level, do NOT read in "inclusive" mode
+      grid = gridNext; // reuse the previous buffer
+      error = read_idx_grid(idx_file, field, time, hz, from, to, stride, &grid);
+    }
+    else { // for the coarsest level ONLY, read in "inclusive" mode
+      grid.data.bytes = idx_file.get_field_sample_size(field) * uint64_t(dim.x) * dim.y * dim.z;
+      grid.data.ptr = (char*)malloc(grid.data.bytes);
+      error = read_idx_grid_inclusive(idx_file, field, time, hz, &grid);
+    }
+
+    /* copy the data to the next level */
+    if (hz < max_hz_level) {
+      Vector3i fromNext, toNext, strideNext;
+      // ask for the box's dimensions in the next level so that we know how much to allocate
+      idx_file.get_grid_inclusive(gridNext.extent, hz + 1, &fromNext, &toNext, &strideNext);
+      Vector3i dimNext = (toNext - fromNext) / strideNext + 1;
+      gridNext.data.bytes = idx_file.get_field_sample_size(field) * uint64_t(dimNext.x) * dimNext.y * dimNext.z;
+      gridNext.data.ptr = (char*)malloc(gridNext.data.bytes);
+      // NOTE the template parameter: should be the same as the field's type
+      copy_grid<double>(from, to, stride, grid, fromNext, toNext, strideNext, &gridNext);
+    }
+    /* optionally output the queried box for checking */
+    if (hz == max_hz_level) {
+      FILE* fp = fopen("out.raw", "wb");
+      fwrite(grid.data.ptr, grid.data.bytes, 1, fp);
+      fclose(fp);
+    }
+    if (error.code != Error::NoError) {
+      cout << "Error: " << error.get_error_msg() << "\n";
+      return;
+    }
+
+    free(grid.data.ptr);
+  }
+  deallocate_memory();
+}
+
 int main()
 {
   using namespace hana;
   using namespace std::chrono;
+  //test_write_idx();
+  test_read_idx_grid_manual_progressive();
+  return 1;
   high_resolution_clock::time_point t1 = high_resolution_clock::now();
   //test_write_idx();
   //test_write_idx_multiple_files();
-  test_write_idx_multiple_writes();
+  //test_write_idx_multiple_writes();
   //test_read_idx_performance();
-  return 0;
-  test_get_block_grid();
+  //test_get_block_grid();
   test_read_idx_grid_1();
   test_read_idx_grid_2();
   test_read_idx_grid_3();
@@ -953,3 +1021,5 @@ int main()
   std::cout << "Running all tests took " << time_span.count() << " seconds.";
   return 0;
 }
+
+

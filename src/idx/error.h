@@ -25,6 +25,7 @@ struct Error {
     FieldNotFound          = 14,
     TimeStepNotFound       = 15,
     VolumeTooBig           = 16,
+    InvalidGrid            = 17,
     NumErrors
   };
   Error() : code(NoError) {}
