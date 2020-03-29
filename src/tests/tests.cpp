@@ -2,6 +2,7 @@
 #include <idx/idx.h>
 #include <idx/idx_file.h>
 #include <idx/timer.h>
+#include <idx/memory_map.h>
 #include "md5.h"
 #include <cstdlib>
 #include <ctime>
@@ -13,6 +14,48 @@
 
 using namespace hana;
 using namespace std;
+
+void test_read_idx_grid_0()
+{
+  cout << "Test 0" << endl;
+
+  IdxFile idx_file;
+
+  Error error = read_idx_file("G:/vis2020/lifted_flame/lifted.idx", &idx_file);
+  if (error.code != Error::NoError) {
+    cout << "Error: " << error.get_error_msg() << "\n";
+    return;
+  }
+
+  int hz_level = idx_file.get_max_hz_level();
+  int field = idx_file.get_field_index("velocity");
+  int time = 256;
+
+  Grid grid;
+  grid.extent = idx_file.get_logical_extent();
+  grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
+  mmap_file MMap;
+  OpenFile(&MMap, "G:/vis2020/lifted_flame.raw", map_mode::Write);
+  MapFile(&MMap, grid.data.bytes);
+  grid.data.ptr = MMap.Buf.ptr;
+
+  Vector3i from, to, stride;
+  idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
+  Vector3i dim = (to - from) / stride + 1;
+  cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
+
+  error = read_idx_grid_inclusive(idx_file, field, time, hz_level, &grid);
+  FlushFile(&MMap);
+  SyncFile(&MMap);
+  UnmapFile(&MMap);
+  CloseFile(&MMap);
+  deallocate_memory();
+
+  if (error.code != Error::NoError) {
+    cout << "Error: " << error.get_error_msg() << "\n";
+    return;
+  }
+}
 
 // Read the entire volume at full resolution. Reading the data at full
 // resolution always work in "progressive" mode (data in hz levels
@@ -988,12 +1031,71 @@ void test_read_idx_grid_manual_progressive()
   deallocate_memory();
 }
 
+void test_write_cat()
+{
+  Vector3i dims(256, 256, 1);
+  IdxFile idx_file;
+  const char* file_path = "./gray.idx";
+  create_idx_file(dims, 1, "uint8", 1, file_path, &idx_file);
+  write_idx_file(file_path, &idx_file);
+
+  int hz_level = idx_file.get_max_hz_level();
+  Grid grid;
+  grid.extent = idx_file.get_logical_extent();
+  grid.data.bytes = idx_file.get_size_inclusive(grid.extent, 0, hz_level);
+  grid.data.ptr = (char*)calloc(grid.data.bytes, 1);
+  FILE* fp = fopen("gray.raw", "rb");
+  fread(grid.data.ptr, grid.data.bytes, 1, fp);
+  fclose(fp);
+  write_idx_grid(idx_file, 0, 0, grid);
+  free(grid.data.ptr);
+
+  ///* read back the idx file */
+  //IdxFile idx_file_r;
+  //Error error_r = read_idx_file(file_path, &idx_file_r);
+  //if (error_r.code != Error::NoError) {
+  //  cout << "Error: " << error_r.get_error_msg() << "\n";
+  //  return;
+  //}
+
+  //int field_r = 0;
+  //int time_r = idx_file_r.get_min_time_step();
+
+  //Grid grid_r;
+  //grid_r.extent = idx_file_r.get_logical_extent();
+  //grid_r.data.bytes = idx_file_r.get_size_inclusive(grid_r.extent, field_r, hz_level);
+  //grid_r.data.ptr = (char*)calloc(grid_r.data.bytes, 1);
+  //p = reinterpret_cast<int8_t*>(grid_r.data.ptr);
+
+  //Vector3i from_r, to_r, stride_r;
+  //idx_file_r.get_grid_inclusive(grid_r.extent, hz_level, &from_r, &to_r, &stride_r);
+  //Vector3i dim_r = (to_r - from_r) / stride_r + 1;
+  //cout << "Resulting grid dim = " << dim_r.x << " x " << dim_r.y << " x " << dim_r.z << "\n";
+
+  //error_r = read_idx_grid_inclusive(idx_file_r, field_r, time_r, hz_level, &grid_r);
+
+  //for (int i = 0; i < dims.x * dims.y * dims.z; ++i) {
+  //  //HANA_ASSERT(p[i] == i);
+  //  printf("%d\n", int(p[i]));
+  //}
+  //free(grid_r.data.ptr);
+  //deallocate_memory();
+
+  //if (error_r.code != Error::NoError) {
+  //  cout << "Error: " << error_r.get_error_msg() << "\n";
+  //}
+
+  //return;
+}
+
 int main()
 {
   using namespace hana;
   using namespace std::chrono;
   //test_write_idx();
-  test_read_idx_grid_manual_progressive();
+  //test_read_idx_grid_manual_progressive();
+  //test_write_cat();
+  test_read_idx_grid_0();
   return 1;
   high_resolution_clock::time_point t1 = high_resolution_clock::now();
   //test_write_idx();
