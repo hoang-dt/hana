@@ -46,7 +46,7 @@ OpenFile(mmap_file* MMap, const char* Name, map_mode Mode) {
   MMap->File = open(Name, Mode == map_mode::Read ? O_RDONLY
                                                  : O_RDWR | O_CREAT | O_TRUNC, 0600);
   if (MMap->File == -1)
-    return mg_Error(mmap_err_code::FileCreateFailed);
+    return mmap_err_code::FileCreateFailed;
 #endif
   MMap->Mode = Mode;
   return mmap_err_code::NoError;
@@ -102,7 +102,7 @@ MapFile(mmap_file* MMap, int64_t Bytes) {
          0);
   if (MapAddress == MAP_FAILED)
     return mmap_err_code::MapViewFailed;
-  MMap->Buf.ptr = (byte*)MapAddress;
+  MMap->Buf.ptr = (char*)MapAddress;
   MMap->Buf.bytes = FileSize;
 #endif
   return mmap_err_code::NoError;
@@ -119,14 +119,11 @@ FlushFile(mmap_file* MMap, char* Start, int64_t Bytes) {
 #elif defined(__linux__) || defined(__APPLE__)
   int Result;
   if (Start) {
-    mg_Assert(MMap->Buf.Data <= Start && Start < MMap->Buf.Data + MMap->Buf.Bytes);
-    mg_Assert(Bytes <= (MMap->Buf.Data + MMap->Buf.Bytes) - Start);
     Result = Bytes ? msync(Start, Bytes, MS_ASYNC)
-                   : msync(Start, MMap->Buf.Bytes - (Start - MMap->Buf.Data), MS_ASYNC);
+                   : msync(Start, MMap->Buf.bytes - (Start - MMap->Buf.ptr), MS_ASYNC);
   } else {
-    mg_Assert(Bytes <= MMap->Buf.Bytes);
-    Result = Bytes ? msync(MMap->Buf.Data, Bytes, MS_ASYNC)
-                   : msync(MMap->Buf.Data, MMap->Buf.Bytes, MS_ASYNC);
+    Result = Bytes ? msync(MMap->Buf.ptr, Bytes, MS_ASYNC)
+                   : msync(MMap->Buf.ptr, MMap->Buf.bytes, MS_ASYNC);
   }
   if (Result == -1)
     return mmap_err_code::FlushFailed;

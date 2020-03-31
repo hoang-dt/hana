@@ -56,18 +56,18 @@ template <typename t> void Write(mmap_file* MMap, t Val);
 namespace hana {
 
 template <typename t> void
-  Write(mmap_file* MMap, const t* Data, int64_t Size) {
-  memcpy(MMap->Buf.Data + MMap->Buf.Bytes, Data, Size);
-  MMap->Buf.Bytes += Size;
+Write(mmap_file* MMap, const t* Data, int64_t Size) {
+  memcpy(MMap->Buf.ptr + MMap->Buf.bytes, Data, Size);
+  MMap->Buf.bytes += Size;
 }
 
 template <typename t> void
-  Write(mmap_file* MMap, const t* Data) {
+Write(mmap_file* MMap, const t* Data) {
   Write(MMap, Data, sizeof(t));
 }
 
 template <typename t> void
-  Write(mmap_file* MMap, t Val) {
+Write(mmap_file* MMap, t Val) {
   Write(MMap, &Val, sizeof(t));
 }
 

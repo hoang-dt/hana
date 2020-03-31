@@ -21,7 +21,7 @@ void test_read_idx_grid_0()
 
   IdxFile idx_file;
 
-  Error error = read_idx_file("G:/vis2020/lifted_flame/lifted.idx", &idx_file);
+  Error error = read_idx_file("/usr/sci/visus1/data_old/nvisusio/3d/dnsdata/visus.idx", &idx_file);
   if (error.code != Error::NoError) {
     cout << "Error: " << error.get_error_msg() << "\n";
     return;
