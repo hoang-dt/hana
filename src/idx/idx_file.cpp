@@ -710,8 +710,8 @@ void create_idx_file(
   // uncomment only for nasa llc_2160
   //sprintf(idx_file->bits, "V2222222010101010101010101010101010");
   //sprintf(idx_file->bits, "V222222201010101010101010101010101010");
-  //idx_file->bit_string = StringRef(idx_file->bits + 1, IdxFile::num_bits_max - 1);
   //idx_file->bit_string.size = 36;
+  idx_file->bit_string = StringRef(idx_file->bits + 1, IdxFile::num_bits_max - 1);
   guess_bit_string(dims, idx_file->bit_string);
   printf("%d\n", idx_file->bit_string.size);
   int pow2_x = pow_greater_equal(2, dims.x);
