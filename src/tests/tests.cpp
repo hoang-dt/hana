@@ -978,7 +978,7 @@ void test_write_idx_nasa_2160()
   }
 }
 
-void test_write_idx_nasa_4320(int time, const char* field)
+void test_write_idx_nasa_4320(int ntimesteps)
 {
   printf("----- writing nasa llc 4320 ------\n");
   int nlevels = 1;
@@ -989,8 +989,8 @@ void test_write_idx_nasa_4320(int time, const char* field)
   Vector3i dims(nx * nfaces, ny, nlevels); // 4 faces x 3 faces x 90 depth levels
   IdxFile idx_file;
   char file_path[128] = {};
-  sprintf(file_path, "llc-4320-time-%d.idx", time);
-  create_idx_file(dims, 1, "float32", 1, file_path, &idx_file);
+  sprintf(file_path, "llc-4320-64.idx");
+  create_idx_file(dims, 1, "float32", ntimesteps, file_path, &idx_file);
   idx_file.set_bits_per_block(16);
   idx_file.set_blocks_per_file(256);
   write_idx_file(file_path, &idx_file);
@@ -1006,32 +1006,37 @@ void test_write_idx_nasa_4320(int time, const char* field)
   std::vector<float> face(nx * ny); // storing one face
 
   /* write to idx one slice at a time */
-  for (int l = 0; l < nlevels; ++l) { // for each level
-    printf("  writing slice (level) %d\n", l);
-    /* aggregate data from 4 faces into a slice */
-    for (int f = 0; f < nfaces; ++f) { // for each face
-      char file_name[128] = {};
-      sprintf(file_name, "%s-time-%d-depth-%d-face-%d.raw", field, time, l, faces[f], nx, ny);
-      printf("  reading from %s\n", file_name);
-      FILE* fp = fopen(file_name, "rb");
-      fread(face.data(), nx * ny * sizeof(float), 1, fp);
-      /* copy from a face to the slice (4 faces) */
-      for (int y = 0; y < ny; ++y) {
-        for (int x = 0; x < nx; ++x) {
-          int i = y * nx + x; // from
-          int j = y * (nx * nfaces) + (f * nx + x); // to
-          slice[j] = face[i];
+  for (int time = 0; time < ntimesteps; ++time) {
+    for (int l = 0; l < nlevels; ++l) { // for each level
+      printf("  writing slice (level) %d\n", l);
+      /* aggregate data from 4 faces into a slice */
+      for (int f = 0; f < nfaces; ++f) { // for each face
+        char file_name[128] = {};
+        if (faces[f] < 2)
+          sprintf(file_name, "u-time-%d-depth-%d-face-%d.raw", time, l, faces[f], nx, ny);
+        else
+          sprintf(file_name, "v-time-%d-depth-%d-face-%d.raw", time, l, faces[f], nx, ny);
+        printf("  reading from %s\n", file_name);
+        FILE* fp = fopen(file_name, "rb");
+        fread(face.data(), nx * ny * sizeof(float), 1, fp);
+        /* copy from a face to the slice (4 faces) */
+        for (int y = 0; y < ny; ++y) {
+          for (int x = 0; x < nx; ++x) {
+            int i = y * nx + x; // from
+            int j = y * (nx * nfaces) + (f * nx + x); // to
+            slice[j] = face[i];
+          }
         }
+        fclose(fp);
       }
-      fclose(fp);
+      //FILE* fp = fopen("temp.raw", "wb");
+      //fwrite(slice, nx * 4 * ny * sizeof(float), 1, fp);
+      //fclose(fp);
+      /* write a single z slice (depth level) */
+      grid.extent.from = Vector3i(0, 0, l);
+      grid.extent.to   = Vector3i(dims.x - 1, dims.y - 1, l);
+      write_idx_grid(idx_file, 0, time, grid);
     }
-    //FILE* fp = fopen("temp.raw", "wb");
-    //fwrite(slice, nx * 4 * ny * sizeof(float), 1, fp);
-    //fclose(fp);
-    /* write a single z slice (depth level) */
-    grid.extent.from = Vector3i(0, 0, l);
-    grid.extent.to   = Vector3i(dims.x - 1, dims.y - 1, l);
-    write_idx_grid(idx_file, 0, 0, grid);
   }
 }
 
@@ -1155,10 +1160,7 @@ int main()
   //test_write_idx();
   //test_read_idx_grid_manual_progressive();
   //test_read_flame();
-  for (int time = 0; time < 64; ++time) {
-    test_write_idx_nasa_4320(time, "u");
-    test_write_idx_nasa_4320(time, "v");
-  }
+  test_write_idx_nasa_4320(64);
   return 1;
   high_resolution_clock::time_point t1 = high_resolution_clock::now();
   //test_write_idx();
