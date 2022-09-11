@@ -14,6 +14,52 @@
 using namespace hana;
 using namespace std;
 
+// read and dump the lifted flame dataset
+void test_read_flame()
+{
+  cout << "lifted flame" << endl;
+
+  IdxFile idx_file;
+
+  Error error = read_idx_file("/usr/sci/cedmav/data/TALASS/Combustion/LiftedFlame/lifted.idx", &idx_file);
+  if (error.code != Error::NoError) {
+    cout << "Error: " << error.get_error_msg() << "\n";
+    return;
+  }
+
+  int hz_level = idx_file.get_max_hz_level();
+  int field = idx_file.get_field_index("velocity");
+  int time = 279;
+
+  Grid grid;
+  grid.extent = idx_file.get_logical_extent();
+  grid.data.bytes = idx_file.get_size_inclusive(grid.extent, field, hz_level);
+  grid.data.ptr = (char*)malloc(grid.data.bytes);
+
+  Vector3i from, to, stride;
+  idx_file.get_grid_inclusive(grid.extent, hz_level, &from, &to, &stride);
+  Vector3i dim = (to - from) / stride + 1;
+  cout << "Resulting grid dim = " << dim.x << " x " << dim.y << " x " << dim.z << "\n";
+
+  int count = 2025 * 1600 * 400;
+  error = read_idx_grid_inclusive(idx_file, field, time, hz_level, &grid);
+  FILE* fp = fopen("lifted_flame.raw", "wb");
+  const double* ptr = (double*)grid.data.ptr;
+  for (int i = 0; i < count; ++i) {
+    fwrite(ptr, sizeof(double), 1, fp);
+    ptr += 3;
+  }
+  fclose(fp);
+  deallocate_memory();
+
+  if (error.code != Error::NoError) {
+    cout << "Error: " << error.get_error_msg() << "\n";
+    return;
+  }
+
+  free(grid.data.ptr);
+}
+
 // Read the entire volume at full resolution. Reading the data at full
 // resolution always work in "progressive" mode (data in hz levels
 // 0, 1, 2, ..., max_hz are merged together).
@@ -875,6 +921,120 @@ void test_write_idx_multiple_writes()
   return;
 }
 
+/* Write the NASA LLC_2160 dataset one face at a time */
+void test_write_idx_nasa_2160()
+{
+  printf("----- writing nasa llc 2160 ------\n");
+  int nlevels = 90;
+  int nfaces = 4; // face 2 (the "cap") is left alone
+  int faces[] = { 0, 1, 3, 4 };
+  int nx = 2160; // x dimension of a face
+  int ny = 2160 * 3; // y dimension of a face
+  Vector3i dims(nx * nfaces, ny, nlevels); // 4 faces x 3 faces x 90 depth levels
+  IdxFile idx_file;
+  const char* file_path = "./nasa-llc-2160.idx";
+  create_idx_file(dims, 1, "float32", 1, file_path, &idx_file);
+  idx_file.set_bits_per_block(16);
+  idx_file.set_blocks_per_file(256);
+  write_idx_file(file_path, &idx_file);
+
+  int hz_level = idx_file.get_max_hz_level();
+
+  Grid grid;
+  grid.extent.from = Vector3i(0, 0, 0);
+  grid.extent.to   = Vector3i(dims.x - 1, dims.y - 1, 1);
+  grid.data.bytes  = idx_file.get_size_inclusive(grid.extent, 0, hz_level);
+  grid.data.ptr    = (char*)calloc(grid.data.bytes, 1);
+  float* slice     = reinterpret_cast<float*>(grid.data.ptr); // storing one slice (4 faces)
+  std::vector<float> face(nx * ny); // storing one face
+
+  /* write to idx one slice at a time */
+  for (int l = 0; l < nlevels; ++l) { // for each level
+    printf("  writing slice (level) %d\n", l);
+    /* aggregate data from 4 faces into a slice */
+    for (int f = 0; f < nfaces; ++f) { // for each face
+      char file_name[128] = {};
+      sprintf(file_name, "D:/Datasets/nasa/llc_2160/llc_2160-level_%d-face_%d-%d-%d-float32.raw", l, faces[f], nx, ny);
+      printf("  reading from %s\n", file_name);
+      FILE* fp = fopen(file_name, "rb");
+      fread(face.data(), nx * ny * sizeof(float), 1, fp);
+      /* copy from a face to the slice (4 faces) */
+      for (int y = 0; y < ny; ++y) {
+        for (int x = 0; x < nx; ++x) {
+          int i = y * nx + x; // from
+          int j = y * (nx * nfaces) + (f * nx + x); // to
+          slice[j] = face[i];
+        }
+      }
+      fclose(fp);
+    }
+    //FILE* fp = fopen("temp.raw", "wb");
+    //fwrite(slice, nx * 4 * ny * sizeof(float), 1, fp);
+    //fclose(fp);
+    /* write a single z slice (depth level) */
+    grid.extent.from = Vector3i(0, 0, l);
+    grid.extent.to   = Vector3i(dims.x - 1, dims.y - 1, l);
+    write_idx_grid(idx_file, 0, 0, grid);
+  }
+}
+
+void test_write_idx_nasa_4320(int time, const char* field)
+{
+  printf("----- writing nasa llc 4320 ------\n");
+  int nlevels = 1;
+  int nfaces = 4; // face 2 (the "cap") is left alone
+  int faces[] = { 0, 1, 3, 4 };
+  int nx = 4320; // x dimension of a face
+  int ny = 4320 * 3; // y dimension of a face
+  Vector3i dims(nx * nfaces, ny, nlevels); // 4 faces x 3 faces x 90 depth levels
+  IdxFile idx_file;
+  char file_path[128] = {};
+  sprintf(file_path, "llc-4320-time-%d.idx", time);
+  create_idx_file(dims, 1, "float32", 1, file_path, &idx_file);
+  idx_file.set_bits_per_block(16);
+  idx_file.set_blocks_per_file(256);
+  write_idx_file(file_path, &idx_file);
+
+  int hz_level = idx_file.get_max_hz_level();
+
+  Grid grid;
+  grid.extent.from = Vector3i(0, 0, 0);
+  grid.extent.to   = Vector3i(dims.x - 1, dims.y - 1, 1);
+  grid.data.bytes  = idx_file.get_size_inclusive(grid.extent, 0, hz_level);
+  grid.data.ptr    = (char*)calloc(grid.data.bytes, 1);
+  float* slice     = reinterpret_cast<float*>(grid.data.ptr); // storing one slice (4 faces)
+  std::vector<float> face(nx * ny); // storing one face
+
+  /* write to idx one slice at a time */
+  for (int l = 0; l < nlevels; ++l) { // for each level
+    printf("  writing slice (level) %d\n", l);
+    /* aggregate data from 4 faces into a slice */
+    for (int f = 0; f < nfaces; ++f) { // for each face
+      char file_name[128] = {};
+      sprintf(file_name, "%s-time-%d-depth-%d-face-%d.raw", field, time, l, faces[f], nx, ny);
+      printf("  reading from %s\n", file_name);
+      FILE* fp = fopen(file_name, "rb");
+      fread(face.data(), nx * ny * sizeof(float), 1, fp);
+      /* copy from a face to the slice (4 faces) */
+      for (int y = 0; y < ny; ++y) {
+        for (int x = 0; x < nx; ++x) {
+          int i = y * nx + x; // from
+          int j = y * (nx * nfaces) + (f * nx + x); // to
+          slice[j] = face[i];
+        }
+      }
+      fclose(fp);
+    }
+    //FILE* fp = fopen("temp.raw", "wb");
+    //fwrite(slice, nx * 4 * ny * sizeof(float), 1, fp);
+    //fclose(fp);
+    /* write a single z slice (depth level) */
+    grid.extent.from = Vector3i(0, 0, l);
+    grid.extent.to   = Vector3i(dims.x - 1, dims.y - 1, l);
+    write_idx_grid(idx_file, 0, 0, grid);
+  }
+}
+
 void test_read_idx_performance()
 {
   auto begin = clock();
@@ -993,7 +1153,12 @@ int main()
   using namespace hana;
   using namespace std::chrono;
   //test_write_idx();
-  test_read_idx_grid_manual_progressive();
+  //test_read_idx_grid_manual_progressive();
+  //test_read_flame();
+  for (int time = 0; time < 64; ++time) {
+    test_write_idx_nasa_4320(time, "u");
+    test_write_idx_nasa_4320(time, "v");
+  }
   return 1;
   high_resolution_clock::time_point t1 = high_resolution_clock::now();
   //test_write_idx();
